@@ -1,0 +1,163 @@
+# user-service configuration example
+# Copy to config.yaml and fill in real values
+
+server:
+  grpc: ":9000"
+  http: ":8080"
+
+database:
+  host: "127.0.0.1"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  dbname: "user_service"
+  sslmode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: "5m"
+  # GORM options
+  log_level: "warn"            # silent, error, warn, info
+  slow_threshold: "200ms"      # slow query warning threshold
+  skip_default_tx: true        # skip implicit transaction for single ops (recommended for production)
+  disable_fk: true             # disable foreign key constraints in migration
+  table_prefix: "usr_"         # prefix for all table names; migration scripts must use matching names
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+
+# Captcha (verification codes). When omitted, user-service falls back to a
+# built-in default: 5 codes / 5 min per target, 3 wrong attempts, 5-min TTL,
+# for purposes register/login/verify_email/verify_phone/password_reset/bind.
+# Purpose keys are the numeric VerificationPurpose enum values as strings.
+# captcha:
+#   prefix: "captcha"
+#   max_attempts: 3
+#   purposes:
+#     "1": # REGISTER
+#       rate_rules:
+#         - window: "5m"
+#           max: 5
+#     "2": # LOGIN
+#       rate_rules:
+#         - window: "5m"
+#           max: 5
+
+session:
+  ttl: "168h"
+  max_sessions: 5             # max concurrent sessions per user, 0 = unlimited
+  key_prefix: "user:session"
+  user_sessions_prefix: "user:user_sessions"
+  session_code_ttl: "5m"      # one-time short code TTL for IssueSessionCode (OAuth callback handoff)
+
+rbac:
+  cache:
+    user_perms_ttl: "10m"
+    user_roles_ttl: "10m"
+    role_perms_ttl: "30m"
+    group_roles_ttl: "30m"
+    group_user_perms_ttl: "10m"
+  user_perms_prefix: "user:rbac:user_perms"
+  user_roles_prefix: "user:rbac:user_roles"
+  role_perms_prefix: "user:rbac:role_perms"
+  group_roles_prefix: "user:rbac:group_roles"
+  group_user_perms_prefix: "user:rbac:group_user_perms"
+
+oauth:
+  # ──────────────────────────────────────────────────────────────────────
+  # 重要:每个 provider 的 redirect_url 必须与 OAuth 提供方后台注册的值
+  # **精确匹配**,包括:
+  #   - scheme(https vs http)
+  #   - host(域名)
+  #   - path(包括末尾斜杠)
+  # 不匹配会导致 OAuth 提供方报 "redirect_uri mismatch"。常见踩坑:
+  #   ✗ 末尾多斜杠:  https://auth.corp.com/callback/
+  #   ✗ http vs https: http://auth.corp.com/callback
+  #   ✗ 端口写错:    https://auth.corp.com:443/callback
+  # user-service 在 New() 时会做格式校验(scheme/host/URL 解析),但
+  # 没法知道 provider 那边注册了什么 —— 责任在配置的人。
+  # ──────────────────────────────────────────────────────────────────────
+  github:
+    client_id: ""
+    client_secret: ""
+    # OAuth 提供方后台注册的固定回调 URL,属于"统一回调服务"(独立 HTTP 服务),
+    # 不属于任何业务方。多业务共用一个 OAuth App 时所有业务的 OAuth 流程都走这个 URL。
+    redirect_url: "https://auth.corp.com/oauth/callback"
+    # 业务方 return_to 白名单(精确匹配)。空 + 非空 return_to → 直接拒绝。
+    # GetOAuthURL(req.return_to) 时,user-service 会校验 req.return_to 必须在此列表里。
+    # 生产环境**必须**填,列出所有合法业务方的回调入口。
+    allowed_redirect_urls:
+      - "https://app.corp.com/auth/done"
+      - "https://admin.corp.com/auth/done"
+    # 逃生舱:允许任意 return_to(**仅** dev/staging 用)。
+    # 生产环境**绝不**开启 —— 会让 XSS 通过 return_to 绕过白名单。
+    # 启动时若为 true 会打 warning 日志。
+    # allow_arbitrary_redirect_urls: false
+  google:
+    client_id: ""
+    client_secret: ""
+    redirect_url: "https://auth.corp.com/oauth/callback"
+    allowed_redirect_urls:
+      - "https://app.corp.com/auth/done"
+      - "https://admin.corp.com/auth/done"
+    # allow_arbitrary_redirect_urls: false  # NEVER enable in prod; dev/staging escape hatch only
+  wechat:
+    app_id: ""
+    app_secret: ""
+    redirect_url: "https://auth.corp.com/oauth/callback"
+    allowed_redirect_urls:
+      - "https://app.corp.com/auth/done"
+      - "https://admin.corp.com/auth/done"
+    # allow_arbitrary_redirect_urls: false  # NEVER enable in prod; dev/staging escape hatch only
+  apple:
+    client_id: ""
+    team_id: ""
+    key_id: ""
+    private_key: ""
+    redirect_url: "https://auth.corp.com/oauth/callback"
+    allowed_redirect_urls:
+      - "https://app.corp.com/auth/done"
+      - "https://admin.corp.com/auth/done"
+    # allow_arbitrary_redirect_urls: false  # NEVER enable in prod; dev/staging escape hatch only
+    client_secret_ttl: "30m"
+
+third_party:
+  gid:
+    mode: "module"          # module | grpc
+    target: ""              # gRPC addr when mode=grpc, e.g. "localhost:9000"
+    config:                 # required when mode=module — full gid-service config
+      snowflake:
+        machine_id: 1       # must be unique per node
+        start_time: "2024-01-01T00:00:00Z"  # snowflake epoch — DO NOT change after deployment
+  message:
+    mode: "grpc"            # module | grpc
+    target: "localhost:9001"  # gRPC addr when mode=grpc
+    # config:               # required when mode=module — full message-service config (vendors, routes, persistence)
+    #   email:
+    #     vendors: { ... }
+    #   sms:
+    #     vendors: { ... }
+
+# Rate limiting, organized by purpose.
+# Each entry is a ratelimit.Config with prefix, global rules, and per-purpose rules.
+# rate_limit:
+#   login:
+#     prefix: "login:rate"
+#     global:
+#       - window: "5m"
+#         max: 100
+#     rules:
+#       fail:
+#         - window: "5m"
+#           max: 5
+#         - window: "1h"
+#           max: 15
+
+# Cron scheduler settings. Per-task specs live in their owning domain config.
+# cron:
+#   timezone: "Asia/Shanghai"
+
+log:
+  level: "info"
+  format: "json"
