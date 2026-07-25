@@ -11,8 +11,8 @@ import (
 func TestLoad(t *testing.T) {
 	content := `
 server:
-  grpc: ":9000"
-  http: ":8080"
+  grpc: ":19094"
+  http: ":18084"
 database:
   host: "127.0.0.1"
   port: 5432
@@ -61,8 +61,8 @@ log:
 		t.Fatalf("Load: %v", err)
 	}
 
-	if cfg.Server.GRPC != ":9000" {
-		t.Errorf("Server.GRPC = %q, want :9000", cfg.Server.GRPC)
+	if cfg.Server.GRPC != ":19094" {
+		t.Errorf("Server.GRPC = %q, want :19094", cfg.Server.GRPC)
 	}
 	if cfg.Database.Port != 5432 {
 		t.Errorf("Database.Port = %d, want 5432", cfg.Database.Port)
@@ -181,8 +181,8 @@ func TestExampleConfigsAreLoadable(t *testing.T) {
 	}
 
 	// Spot-check that ${VAR} was actually expanded, not left literal.
-	if cfg.Server.GRPC != ":9000" {
-		t.Errorf("Server.GRPC = %q, want %q", cfg.Server.GRPC, ":9000")
+	if cfg.Server.GRPC != ":19094" {
+		t.Errorf("Server.GRPC = %q, want %q", cfg.Server.GRPC, ":19094")
 	}
 	if cfg.Database.Host != "127.0.0.1" {
 		t.Errorf("Database.Host = %q, want 127.0.0.1", cfg.Database.Host)

@@ -4,7 +4,7 @@
 
 支持两种部署形态:
 
-- **独立 gRPC 服务** —— 监听 `:9000`(gRPC)+ `:8080`(grpc-gateway HTTP)
+- **独立 gRPC 服务** —— 监听 `:19094`(gRPC)+ `:18084`(grpc-gateway HTTP)
 - **Go module in-process** —— 在父进程内调用 `service.New(cfg)` 拿到 `*Service`,直接调方法,不经过网络
 
 ---
@@ -351,7 +351,7 @@ func redirectOAuthError(w http.ResponseWriter, r *http.Request, code string) {
 
 func main() {
     http.HandleFunc("/oauth/callback", oauthCallback)
-    log.Fatal(http.ListenAndServe(":8080", nil))
+    log.Fatal(http.ListenAndServe(":18084", nil))
 }
 ```
 
@@ -755,7 +755,7 @@ func main() {
         http.Redirect(w, r, "/dashboard", http.StatusFound) // ← 自己跳,不靠 return_to
     })
 
-    http.ListenAndServe(":8080", nil)
+    http.ListenAndServe(":18084", nil)
 }
 ```
 

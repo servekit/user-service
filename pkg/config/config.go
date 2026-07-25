@@ -56,7 +56,7 @@ type ThirdPartyConfig struct {
 // treat an empty value (GID falls back to module, Message to grpc).
 type RemoteServiceConfig[T any] struct {
 	Mode   string // "module" | "grpc"
-	Target string // gRPC addr when mode=grpc, e.g. "localhost:9000"
+	Target string // gRPC addr when mode=grpc, e.g. "localhost:19091"
 	Config T      // module-mode config
 }
 
@@ -68,8 +68,8 @@ type RateLimitConfig struct {
 
 // ServerConfig holds gRPC and HTTP gateway listener addresses.
 type ServerConfig struct {
-	GRPC string `default:":9000"`
-	HTTP string `default:":8080"`
+	GRPC string `default:":19094"`
+	HTTP string `default:":18084"`
 }
 
 // SessionConfig holds session management settings.

@@ -120,7 +120,7 @@ oauth:
 third_party:
   gid:
     mode: ${GID_MODE}          # module | grpc
-    target: ${GID_TARGET}      # gRPC addr when mode=grpc, e.g. "localhost:9000"
+    target: ${GID_TARGET}      # gRPC addr when mode=grpc, e.g. "localhost:19091"
     config:                    # required when mode=module — full gid-service config
       snowflake:
         machine_id: ${GID_MACHINE_ID}  # must be unique per node

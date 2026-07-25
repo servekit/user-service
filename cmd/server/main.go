@@ -28,9 +28,9 @@
 //
 //	server:
 //	  grpc:
-//	    addr: ":9000"      # gRPC endpoint
+//	    addr: ":19094"      # gRPC endpoint
 //	  gateway:
-//	    addr: ":8080"      # HTTP gateway (grpc-gateway)
+//	    addr: ":18084"      # HTTP gateway (grpc-gateway)
 package main
 
 import (
