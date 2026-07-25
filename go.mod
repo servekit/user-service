@@ -13,9 +13,9 @@ require (
 	github.com/nyaruka/phonenumbers v1.8.0
 	github.com/redis/go-redis/v9 v9.20.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/servekit/gid-service v0.0.0-20260724075827-67e205e57ef1
+	github.com/servekit/gid-service v0.0.0-20260725050050-97fd4684b30d
 	github.com/servekit/go-common v0.0.0-20260724135115-ddfd1bbfbf36
-	github.com/servekit/message-service v0.0.0-20260724091314-8dc471bbfb71
+	github.com/servekit/message-service v0.0.0-20260725052147-b53264f655ef
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.52.0
 	golang.org/x/oauth2 v0.36.0
