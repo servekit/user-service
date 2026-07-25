@@ -19,6 +19,7 @@ go.work.sum
 # Config (contains secrets)
 config.yaml
 *.local.yaml
+.env
 
 # IDE
 .idea/
@@ -49,3 +50,6 @@ go.mod.tmp
 
 # Git worktrees
 .worktrees/
+
+# Local skill artifacts
+docs/superpowers
