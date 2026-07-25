@@ -1,36 +1,4 @@
-// Package main is the entry point for user-service gRPC server.
-//
-// Build:
-//
-//	go build -o user-service ./cmd/server
-//
-// Run scenarios:
-//
-//	# 1. Default: looks for ./config.yaml in working directory
-//	./user-service
-//
-//	# 2. Custom config via -config flag
-//	./user-service -config /etc/user-service/production.yaml
-//
-//	# 3. Custom config via env var
-//	USER_SERVICE_CONFIG=/etc/user-service/production.yaml ./user-service
-//
-//	# 4. Override individual fields with env vars (USER_SERVICE_ prefix, nested keys joined with _)
-//	USER_SERVICE_DATABASE_HOST=db.prod USER_SERVICE_REDIS_ADDR=redis:6379 ./user-service
-//
-// Config file resolution order:
-//   - -config flag → highest priority
-//   - USER_SERVICE_CONFIG env var
-//   - ./config.yaml in working directory
-//   - /etc/user-service/config.yaml
-//
-// Listeners (configurable in config.yaml):
-//
-//	server:
-//	  grpc:
-//	    addr: ":19094"      # gRPC endpoint
-//	  gateway:
-//	    addr: ":18084"      # HTTP gateway (grpc-gateway)
+// Command server is the user-service gRPC + HTTP entry point.
 package main
 
 import (
@@ -38,8 +6,9 @@ import (
 	"os"
 
 	"github.com/servekit/go-common/logging"
+	"github.com/servekit/go-common/signalx"
 
-	userservice "github.com/servekit/user-service/pkg"
+	pkg "github.com/servekit/user-service/pkg"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
 )
@@ -52,9 +21,9 @@ func main() {
 	}
 	logging.Setup(cfg.Log)
 
-	srv, warnings, err := userservice.NewServer(
+	srv, warnings, err := pkg.NewServer(
 		cfg,
-		userservice.WithServiceOptions(
+		pkg.WithServiceOptions(
 			option.WithMiniRefreshErrorHook(func(appID string, err error) {
 				slog.Error("mini: background token refresh failed", "appid", appID, "error", err)
 			}),
@@ -67,5 +36,9 @@ func main() {
 	for _, w := range warnings {
 		slog.Warn(w)
 	}
-	srv.Run()
+
+	if err := signalx.RunWithForceQuit(srv); err != nil {
+		slog.Error("run server", "error", err)
+		os.Exit(1)
+	}
 }

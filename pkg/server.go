@@ -3,8 +3,6 @@ package userservice
 
 import (
 	"errors"
-	"log/slog"
-	"os"
 
 	"github.com/servekit/go-common/grpcx"
 	"github.com/servekit/go-common/signalx"
@@ -96,12 +94,4 @@ func (s *Server) Start() error {
 // Stop stops the gRPC server and the service. Errors from both are joined.
 func (s *Server) Stop() error {
 	return errors.Join(s.grpcSrv.Stop(), s.svc.Stop())
-}
-
-// Run starts the server and blocks until SIGTERM/SIGINT.
-func (s *Server) Run() {
-	if err := signalx.RunWithForceQuit(s); err != nil {
-		slog.Error("run server", "error", err)
-		os.Exit(1)
-	}
 }
