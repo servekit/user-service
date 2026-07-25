@@ -154,19 +154,26 @@ type OAuthAppleConfig struct {
 	ClientSecretTTL            time.Duration `default:"30m"` // TTL for the JWT client_secret minted on each token exchange
 }
 
-// Load reads and parses configuration using configx.
-// Config file is resolved in order:
+// Load reads configuration from file and environment, expands ${VAR}
+// references in the file against the environment, applies defaults, and
+// returns a Config. Config file is resolved in order:
 //  1. -config flag (e.g. -config /etc/user-service/config.yaml)
 //  2. USER_SERVICE_CONFIG environment variable
 //  3. Default: config.yaml in working directory and /etc/user-service
 //
-// Environment variables override file values using USER_SERVICE_ prefix
-// (e.g. USER_SERVICE_DATABASE_HOST=db.prod).
+// ${VAR} expansion lets config.yaml reference secrets by name
+// (e.g. database.password: ${DB_PASSWORD}, oauth.github.client_secret:
+// ${OAUTH_GITHUB_CLIENT_SECRET}) instead of holding literals, so the template
+// (config.example.yaml) can live in git while real values come from .env (see
+// .env.example). Unset vars expand to "" (os.ExpandEnv semantics). Flat
+// USER_SERVICE_* env vars still override individual fields via viper
+// AutomaticEnv.
 func Load() (*Config, error) {
 	var cfg Config
 	if err := configx.Load(&cfg,
 		configx.WithServiceName(serviceName),
 		configx.WithEnvPrefix(envPrefix),
+		configx.WithExpandEnv(),
 	); err != nil {
 		return nil, err
 	}

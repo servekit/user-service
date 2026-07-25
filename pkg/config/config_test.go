@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -134,5 +136,69 @@ redis:
 	}
 	if cfg.ThirdParty.GID.Config.Snowflake.MachineID != 1 {
 		t.Errorf("ThirdParty.GID.Config.Snowflake.MachineID default = %d, want 1", cfg.ThirdParty.GID.Config.Snowflake.MachineID)
+	}
+}
+
+// loadEnvFile parses a dotenv file and sets each KEY=VALUE into the test
+// environment. Mirrors docker-compose `env_file` semantics: blank lines and
+// lines starting with '#' are skipped, inline comments are NOT supported (the
+// value is everything after the first '='), and quotes are not stripped.
+func loadEnvFile(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read env file: %v", err)
+	}
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		idx := strings.IndexByte(line, '=')
+		if idx < 0 {
+			t.Fatalf("malformed env line (no '='): %q", line)
+		}
+		key := strings.TrimSpace(line[:idx])
+		if key == "" {
+			t.Fatalf("empty key in env line: %q", line)
+		}
+		t.Setenv(key, line[idx+1:])
+	}
+}
+
+// TestExampleConfigsAreLoadable guards that config.example.yaml + .env.example
+// stay self-consistent: loads the YAML with every ${VAR} resolved from
+// .env.example and asserts Load() succeeds with real (expanded) values,
+// including the comma-separated OAuth allowed_redirect_urls list.
+func TestExampleConfigsAreLoadable(t *testing.T) {
+	root := filepath.Join("..", "..")
+	loadEnvFile(t, filepath.Join(root, ".env.example"))
+	t.Setenv("USER_SERVICE_CONFIG", filepath.Join(root, "config.example.yaml"))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("config.example.yaml + .env.example must load: %v", err)
+	}
+
+	// Spot-check that ${VAR} was actually expanded, not left literal.
+	if cfg.Server.GRPC != ":9000" {
+		t.Errorf("Server.GRPC = %q, want %q", cfg.Server.GRPC, ":9000")
+	}
+	if cfg.Database.Host != "127.0.0.1" {
+		t.Errorf("Database.Host = %q, want 127.0.0.1", cfg.Database.Host)
+	}
+	if cfg.Session.TTL != 168*time.Hour {
+		t.Errorf("Session.TTL = %v, want 168h", cfg.Session.TTL)
+	}
+	// OAuth credential + redirect URL expanded.
+	if cfg.OAuth.GitHub.RedirectURL != "https://auth.corp.com/oauth/callback" {
+		t.Errorf("OAuth.GitHub.RedirectURL = %q", cfg.OAuth.GitHub.RedirectURL)
+	}
+	// Comma-separated list split into []string.
+	if got := len(cfg.OAuth.GitHub.AllowedRedirectURLs); got != 2 {
+		t.Errorf("len(OAuth.GitHub.AllowedRedirectURLs) = %d, want 2 (comma-split failed?)", got)
+	}
+	if cfg.ThirdParty.Message.Target != "localhost:9001" {
+		t.Errorf("ThirdParty.Message.Target = %q, want localhost:9001", cfg.ThirdParty.Message.Target)
 	}
 }
