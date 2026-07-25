@@ -12,6 +12,7 @@
 ## 目录
 
 - [依赖](#依赖)
+- [构建与运行](#构建与运行)
 - [典型流程](#典型流程)
   - [注册(邮箱 / 手机)](#注册邮箱--手机)
   - [登录](#登录)
@@ -36,6 +37,35 @@
 | message-service | 发送验证码邮件 / 短信 | gRPC 调用,模板内容由调用方提供 |
 | gid-service | 雪花算法 ID 生成 | 通过 gRPC 获取 user_id / group_id / role_id |
 | OAuth providers | GitHub / Google / WeChat / Apple / WeChat MiniProgram | 配置 OAuth.* 字段 |
+
+---
+
+## 构建与运行
+
+服务与数据库迁移合并为同一个二进制(`cmd/server`),通过子命令区分:
+
+| 命令 | 作用 |
+|---|---|
+| `./user-service` 或 `./user-service serve` | 启动 gRPC + HTTP 服务(默认) |
+| `./user-service migrate` | 执行 GORM AutoMigrate 后退出 |
+| 其他 | 打印用法,exit 2 |
+
+本地开发:
+
+```bash
+make build      # 产出 bin/user-service
+make run        # go run 启动服务
+make migrate    # go run 执行迁移
+```
+
+迁移与发版解耦 —— 先单独跑迁移,再启动服务(启动时**不再自动迁移**):
+
+```bash
+./user-service migrate     # CI / 部署脚本手动执行一次
+./user-service             # 启动服务
+```
+
+> 二进制名由 Makefile 的 `BIN_NAME` 变量管理(默认 `user-service`),改名只需覆盖该变量;Go 包路径固定为 `cmd/server`。user-service 暂无 Dockerfile,镜像构建待补。
 
 ---
 

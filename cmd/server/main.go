@@ -1,7 +1,15 @@
-// Command server is the user-service gRPC + HTTP entry point.
+// Command user-service is the user-service gRPC + HTTP entry point, and
+// also hosts operational subcommands such as database migration.
+//
+// Usage:
+//
+//	user-service           # start the gRPC + HTTP server (default)
+//	user-service serve     # same as above (explicit)
+//	user-service migrate   # apply GORM AutoMigrate, then exit
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -14,10 +22,28 @@ import (
 )
 
 func main() {
+	switch subcommand() {
+	case "", "serve":
+		if err := runServer(); err != nil {
+			slog.Error("serve failed", "error", err)
+			os.Exit(1)
+		}
+	case "migrate":
+		if err := runMigrate(); err != nil {
+			slog.Error("migrate failed", "error", err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "usage: %s [serve|migrate]\n", os.Args[0])
+		os.Exit(2)
+	}
+}
+
+// runServer loads config and starts the gRPC + HTTP server.
+func runServer() error {
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("load config", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
 	logging.Setup(cfg.Log)
 
@@ -30,15 +56,25 @@ func main() {
 		),
 	)
 	if err != nil {
-		slog.Error("init server", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("init server: %w", err)
 	}
 	for _, w := range warnings {
 		slog.Warn(w)
 	}
 
 	if err := signalx.RunWithForceQuit(srv); err != nil {
-		slog.Error("run server", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("run server: %w", err)
 	}
+	return nil
+}
+
+// --- internal helpers ---
+
+// subcommand returns the first positional argument, or "" when none is given.
+// An empty value means "start the server" (the default).
+func subcommand() string {
+	if len(os.Args) > 1 {
+		return os.Args[1]
+	}
+	return ""
 }

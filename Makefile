@@ -6,19 +6,23 @@
 LDFLAGS := -s -w
 GOFLAGS := -trimpath
 
-## build: Build server and migrate binaries into bin/ (production flags)
+# Published binary name. Override to ship under a different name without
+# touching the source tree, e.g. `make build BIN_NAME=usersvc`.
+# The Go package path stays cmd/server regardless.
+BIN_NAME := user-service
+CMD_DIR  := cmd/server
+
+## build: Build the user-service binary (server + migrate in one)
 build:
-	go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o bin/server ./cmd/server/
-	go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o bin/migrate ./cmd/migrate/
+	go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o bin/$(BIN_NAME) ./$(CMD_DIR)/
 
 ## build-dev: Build without -s -w -trimpath (for debugging)
 build-dev:
-	go build -o bin/server ./cmd/server/
-	go build -o bin/migrate ./cmd/migrate/
+	go build -o bin/$(BIN_NAME) ./$(CMD_DIR)/
 
 ## run: Run the server locally
 run:
-	go run ./cmd/server/
+	go run ./$(CMD_DIR)/
 
 ## test: Run tests with race detector
 test:
@@ -45,9 +49,9 @@ generate:
 proto:
 	buf generate
 
-## migrate: Run GORM AutoMigrate
+## migrate: Run database migrations (AutoMigrate) via the unified binary
 migrate:
-	go run ./cmd/migrate/
+	go run ./$(CMD_DIR) migrate
 
 ## tidy: Run go mod tidy
 tidy:
