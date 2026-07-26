@@ -1,6 +1,6 @@
 # user-service configuration template.
 #
-# All values are ${VAR} references resolved from the environment at load time
+# All values are ${USER_SERVICE_VAR} references resolved from the environment at load time
 # (see pkg/config/config.go -> configx.WithExpandEnv). Copy to config.yaml for
 # local dev; set the actual values in .env (see .env.example).
 #
@@ -8,66 +8,66 @@
 # be committed — keep them in .env (gitignored).
 
 server:
-  grpc: ${SERVER_GRPC}
-  http: ${SERVER_HTTP}
+  grpc: ${USER_SERVICE_SERVER_GRPC}
+  http: ${USER_SERVICE_SERVER_HTTP}
 
 database:
-  host: ${DB_HOST}
-  port: ${DB_PORT}
-  user: ${DB_USER}
-  password: ${DB_PASSWORD}
-  dbname: ${DB_NAME}
-  sslmode: ${DB_SSLMODE}
-  max_open_conns: ${DB_MAX_OPEN_CONNS}
-  max_idle_conns: ${DB_MAX_IDLE_CONNS}
-  conn_max_lifetime: ${DB_CONN_MAX_LIFETIME}
+  host: ${USER_SERVICE_DB_HOST}
+  port: ${USER_SERVICE_DB_PORT}
+  user: ${USER_SERVICE_DB_USER}
+  password: ${USER_SERVICE_DB_PASSWORD}
+  dbname: ${USER_SERVICE_DB_NAME}
+  sslmode: ${USER_SERVICE_DB_SSLMODE}
+  max_open_conns: ${USER_SERVICE_DB_MAX_OPEN_CONNS}
+  max_idle_conns: ${USER_SERVICE_DB_MAX_IDLE_CONNS}
+  conn_max_lifetime: ${USER_SERVICE_DB_CONN_MAX_LIFETIME}
   # GORM options
-  log_level: ${DB_LOG_LEVEL}              # silent, error, warn, info
-  slow_threshold: ${DB_SLOW_THRESHOLD}    # slow query warning threshold
-  skip_default_tx: ${DB_SKIP_DEFAULT_TX}  # skip implicit transaction for single ops (recommended for production)
-  disable_fk: ${DB_DISABLE_FK}            # disable foreign key constraints in migration
+  log_level: ${USER_SERVICE_DB_LOG_LEVEL}              # silent, error, warn, info
+  slow_threshold: ${USER_SERVICE_DB_SLOW_THRESHOLD}    # slow query warning threshold
+  skip_default_tx: ${USER_SERVICE_DB_SKIP_DEFAULT_TX}  # skip implicit transaction for single ops (recommended for production)
+  disable_fk: ${USER_SERVICE_DB_DISABLE_FK}            # disable foreign key constraints in migration
   # prefix for all table names; migration scripts must use matching names
-  table_prefix: ${DB_TABLE_PREFIX}
+  table_prefix: ${USER_SERVICE_DB_TABLE_PREFIX}
 
 redis:
-  addr: ${REDIS_ADDR}
-  password: ${REDIS_PASSWORD}
-  db: ${REDIS_DB}
+  addr: ${USER_SERVICE_REDIS_ADDR}
+  password: ${USER_SERVICE_REDIS_PASSWORD}
+  db: ${USER_SERVICE_REDIS_DB}
 
 # Captcha (verification codes). When omitted, user-service falls back to a
 # built-in default: 5 codes / 5 min per target, 3 wrong attempts, 5-min TTL,
 # for purposes register/login/verify_email/verify_phone/password_reset/bind.
 # Purpose keys are the numeric VerificationPurpose enum values as strings.
 # captcha:
-#   prefix: ${CAPTCHA_PREFIX}
-#   max_attempts: ${CAPTCHA_MAX_ATTEMPTS}
+#   prefix: ${USER_SERVICE_CAPTCHA_PREFIX}
+#   max_attempts: ${USER_SERVICE_CAPTCHA_MAX_ATTEMPTS}
 #   purposes:
 #     "1": # REGISTER
 #       rate_rules:
-#         - window: ${CAPTCHA_REGISTER_WINDOW}
-#           max: ${CAPTCHA_REGISTER_MAX}
+#         - window: ${USER_SERVICE_CAPTCHA_REGISTER_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_REGISTER_MAX}
 
 session:
-  ttl: ${SESSION_TTL}
+  ttl: ${USER_SERVICE_SESSION_TTL}
   # max concurrent sessions per user, 0 = unlimited
-  max_sessions: ${SESSION_MAX_SESSIONS}
-  key_prefix: ${SESSION_KEY_PREFIX}
-  user_sessions_prefix: ${SESSION_USER_SESSIONS_PREFIX}
+  max_sessions: ${USER_SERVICE_SESSION_MAX_SESSIONS}
+  key_prefix: ${USER_SERVICE_SESSION_KEY_PREFIX}
+  user_sessions_prefix: ${USER_SERVICE_SESSION_USER_SESSIONS_PREFIX}
   # one-time short code TTL for IssueSessionCode (OAuth callback handoff)
-  session_code_ttl: ${SESSION_CODE_TTL}
+  session_code_ttl: ${USER_SERVICE_SESSION_CODE_TTL}
 
 rbac:
   cache:
-    user_perms_ttl: ${RBAC_USER_PERMS_TTL}
-    user_roles_ttl: ${RBAC_USER_ROLES_TTL}
-    role_perms_ttl: ${RBAC_ROLE_PERMS_TTL}
-    group_roles_ttl: ${RBAC_GROUP_ROLES_TTL}
-    group_user_perms_ttl: ${RBAC_GROUP_USER_PERMS_TTL}
-  user_perms_prefix: ${RBAC_USER_PERMS_PREFIX}
-  user_roles_prefix: ${RBAC_USER_ROLES_PREFIX}
-  role_perms_prefix: ${RBAC_ROLE_PERMS_PREFIX}
-  group_roles_prefix: ${RBAC_GROUP_ROLES_PREFIX}
-  group_user_perms_prefix: ${RBAC_GROUP_USER_PERMS_PREFIX}
+    user_perms_ttl: ${USER_SERVICE_RBAC_USER_PERMS_TTL}
+    user_roles_ttl: ${USER_SERVICE_RBAC_USER_ROLES_TTL}
+    role_perms_ttl: ${USER_SERVICE_RBAC_ROLE_PERMS_TTL}
+    group_roles_ttl: ${USER_SERVICE_RBAC_GROUP_ROLES_TTL}
+    group_user_perms_ttl: ${USER_SERVICE_RBAC_GROUP_USER_PERMS_TTL}
+  user_perms_prefix: ${USER_SERVICE_RBAC_USER_PERMS_PREFIX}
+  user_roles_prefix: ${USER_SERVICE_RBAC_USER_ROLES_PREFIX}
+  role_perms_prefix: ${USER_SERVICE_RBAC_ROLE_PERMS_PREFIX}
+  group_roles_prefix: ${USER_SERVICE_RBAC_GROUP_ROLES_PREFIX}
+  group_user_perms_prefix: ${USER_SERVICE_RBAC_GROUP_USER_PERMS_PREFIX}
 
 oauth:
   # ──────────────────────────────────────────────────────────────────────
@@ -84,65 +84,65 @@ oauth:
   # 没法知道 provider 那边注册了什么 —— 责任在配置的人。
   # ──────────────────────────────────────────────────────────────────────
   github:
-    client_id: ${OAUTH_GITHUB_CLIENT_ID}
-    client_secret: ${OAUTH_GITHUB_CLIENT_SECRET}
+    client_id: ${USER_SERVICE_OAUTH_GITHUB_CLIENT_ID}
+    client_secret: ${USER_SERVICE_OAUTH_GITHUB_CLIENT_SECRET}
     # OAuth 提供方后台注册的固定回调 URL,属于"统一回调服务"(独立 HTTP 服务),
     # 不属于任何业务方。多业务共用一个 OAuth App 时所有业务的 OAuth 流程都走这个 URL。
-    redirect_url: ${OAUTH_GITHUB_REDIRECT_URL}
+    redirect_url: ${USER_SERVICE_OAUTH_GITHUB_REDIRECT_URL}
     # 业务方 return_to 白名单(精确匹配)。空 + 非空 return_to → 直接拒绝。
     # Comma-separated list (configx StringToSlice splits on ",").
-    allowed_redirect_urls: ${OAUTH_GITHUB_ALLOWED_REDIRECT_URLS}
+    allowed_redirect_urls: ${USER_SERVICE_OAUTH_GITHUB_ALLOWED_REDIRECT_URLS}
     # 逃生舱:允许任意 return_to(**仅** dev/staging 用)。
     # 生产环境**绝不**开启 —— 会让 XSS 通过 return_to 绕过白名单。
-    # allow_arbitrary_redirect_urls: ${OAUTH_GITHUB_ALLOW_ARBITRARY_REDIRECT_URLS}
+    # allow_arbitrary_redirect_urls: ${USER_SERVICE_OAUTH_GITHUB_ALLOW_ARBITRARY_REDIRECT_URLS}
   google:
-    client_id: ${OAUTH_GOOGLE_CLIENT_ID}
-    client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET}
-    redirect_url: ${OAUTH_GOOGLE_REDIRECT_URL}
-    allowed_redirect_urls: ${OAUTH_GOOGLE_ALLOWED_REDIRECT_URLS}
-    # allow_arbitrary_redirect_urls: ${OAUTH_GOOGLE_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
+    client_id: ${USER_SERVICE_OAUTH_GOOGLE_CLIENT_ID}
+    client_secret: ${USER_SERVICE_OAUTH_GOOGLE_CLIENT_SECRET}
+    redirect_url: ${USER_SERVICE_OAUTH_GOOGLE_REDIRECT_URL}
+    allowed_redirect_urls: ${USER_SERVICE_OAUTH_GOOGLE_ALLOWED_REDIRECT_URLS}
+    # allow_arbitrary_redirect_urls: ${USER_SERVICE_OAUTH_GOOGLE_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
   wechat:
-    app_id: ${OAUTH_WECHAT_APP_ID}
-    app_secret: ${OAUTH_WECHAT_APP_SECRET}
-    redirect_url: ${OAUTH_WECHAT_REDIRECT_URL}
-    allowed_redirect_urls: ${OAUTH_WECHAT_ALLOWED_REDIRECT_URLS}
-    # allow_arbitrary_redirect_urls: ${OAUTH_WECHAT_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
+    app_id: ${USER_SERVICE_OAUTH_WECHAT_APP_ID}
+    app_secret: ${USER_SERVICE_OAUTH_WECHAT_APP_SECRET}
+    redirect_url: ${USER_SERVICE_OAUTH_WECHAT_REDIRECT_URL}
+    allowed_redirect_urls: ${USER_SERVICE_OAUTH_WECHAT_ALLOWED_REDIRECT_URLS}
+    # allow_arbitrary_redirect_urls: ${USER_SERVICE_OAUTH_WECHAT_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
   apple:
-    client_id: ${OAUTH_APPLE_CLIENT_ID}
-    team_id: ${OAUTH_APPLE_TEAM_ID}
-    key_id: ${OAUTH_APPLE_KEY_ID}
-    private_key: ${OAUTH_APPLE_PRIVATE_KEY}
-    redirect_url: ${OAUTH_APPLE_REDIRECT_URL}
-    allowed_redirect_urls: ${OAUTH_APPLE_ALLOWED_REDIRECT_URLS}
-    # allow_arbitrary_redirect_urls: ${OAUTH_APPLE_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
-    client_secret_ttl: ${OAUTH_APPLE_CLIENT_SECRET_TTL}
+    client_id: ${USER_SERVICE_OAUTH_APPLE_CLIENT_ID}
+    team_id: ${USER_SERVICE_OAUTH_APPLE_TEAM_ID}
+    key_id: ${USER_SERVICE_OAUTH_APPLE_KEY_ID}
+    private_key: ${USER_SERVICE_OAUTH_APPLE_PRIVATE_KEY}
+    redirect_url: ${USER_SERVICE_OAUTH_APPLE_REDIRECT_URL}
+    allowed_redirect_urls: ${USER_SERVICE_OAUTH_APPLE_ALLOWED_REDIRECT_URLS}
+    # allow_arbitrary_redirect_urls: ${USER_SERVICE_OAUTH_APPLE_ALLOW_ARBITRARY_REDIRECT_URLS}  # NEVER enable in prod
+    client_secret_ttl: ${USER_SERVICE_OAUTH_APPLE_CLIENT_SECRET_TTL}
 
 third_party:
   gid:
-    mode: ${GID_MODE}          # module | grpc
-    target: ${GID_TARGET}      # gRPC addr when mode=grpc, e.g. "localhost:19091"
+    mode: ${USER_SERVICE_GID_MODE}          # module | grpc
+    target: ${USER_SERVICE_GID_TARGET}      # gRPC addr when mode=grpc, e.g. "localhost:19091"
     config:                    # required when mode=module — full gid-service config
       snowflake:
-        machine_id: ${GID_MACHINE_ID}  # must be unique per node
+        machine_id: ${USER_SERVICE_GID_MACHINE_ID}  # must be unique per node
         # snowflake epoch — DO NOT change after deployment
-        start_time: ${GID_START_TIME}
+        start_time: ${USER_SERVICE_GID_START_TIME}
   message:
-    mode: ${MESSAGE_MODE}      # module | grpc
-    target: ${MESSAGE_TARGET}  # gRPC addr when mode=grpc
+    mode: ${USER_SERVICE_MESSAGE_MODE}      # module | grpc
+    target: ${USER_SERVICE_MESSAGE_TARGET}  # gRPC addr when mode=grpc
     # config:                   # required when mode=module — full message-service config
 
 # Rate limiting, organized by purpose.
 # rate_limit:
 #   login:
-#     prefix: ${RATE_LIMIT_LOGIN_PREFIX}
+#     prefix: ${USER_SERVICE_RATE_LIMIT_LOGIN_PREFIX}
 #     global:
-#       - window: ${RATE_LIMIT_LOGIN_GLOBAL_WINDOW}
-#         max: ${RATE_LIMIT_LOGIN_GLOBAL_MAX}
+#       - window: ${USER_SERVICE_RATE_LIMIT_LOGIN_GLOBAL_WINDOW}
+#         max: ${USER_SERVICE_RATE_LIMIT_LOGIN_GLOBAL_MAX}
 
 # Cron scheduler settings. Per-task specs live in their owning domain config.
 # cron:
-#   timezone: ${CRON_TIMEZONE}
+#   timezone: ${USER_SERVICE_CRON_TIMEZONE}
 
 log:
-  level: ${LOG_LEVEL}
-  format: ${LOG_FORMAT}
+  level: ${USER_SERVICE_LOG_LEVEL}
+  format: ${USER_SERVICE_LOG_FORMAT}
