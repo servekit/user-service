@@ -36,6 +36,7 @@ import (
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
 	"github.com/servekit/user-service/internal/identity/tencent/wechat"
 	"github.com/servekit/user-service/internal/jobs"
+	"github.com/servekit/user-service/internal/version"
 	authsvc "github.com/servekit/user-service/internal/service/auth"
 	rbacsvc "github.com/servekit/user-service/internal/service/rbac"
 	"github.com/servekit/user-service/internal/service/session"
@@ -71,6 +72,9 @@ type Service struct {
 	social  *socialsvc.Service
 	sess    *session.Service
 	rbacSvc *rbacsvc.Service
+
+	// startedAt is set once in New; Ping returns it for uptime.
+	startedAt int64
 }
 
 // New constructs a Service from config and functional options.
@@ -146,6 +150,22 @@ func (s *Service) Start() error { return s.mgr.Start() }
 
 // Stop stops all owned components (LIFO concurrent shutdown via the lifecycle manager).
 func (s *Service) Stop() error { return s.mgr.Stop() }
+
+// Ping is a health-check RPC. Returns only public, non-sensitive info.
+func (s *Service) Ping(ctx context.Context) (*pb.Pong, error) {
+	v := version.Get()
+	return &pb.Pong{
+		Service:   "user-service",
+		Version:   v.Version,
+		GitCommit: v.GitCommit,
+		GitBranch: v.GitBranch,
+		BuildTime: v.BuildTime,
+		GoVersion: v.GoVersion,
+		Status:    "SERVING",
+		Now:       time.Now().UnixMilli(),
+		StartedAt: s.startedAt,
+	}, nil
+}
 
 // --- internal helpers ---
 
@@ -372,6 +392,7 @@ func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid thirdca
 		social:     socialHandler,
 		sess:       sessionHandler,
 		rbacSvc:    rbacHandler,
+		startedAt:  time.Now().UnixMilli(),
 	}, socialWarnings, nil
 }
 
