@@ -35,19 +35,6 @@ func GetUserPermissionGroupByID(ctx context.Context, tx *gorm.DB, id int64) (*mo
 	return &pg, nil
 }
 
-// ListAllUserPermissionGroups returns all permission groups.
-func ListAllUserPermissionGroups(ctx context.Context, tx *gorm.DB) ([]*models.UserPermissionGroup, error) {
-	results, err := gorm.G[models.UserPermissionGroup](tx).Find(ctx)
-	if err != nil {
-		return nil, xcodes.ErrInternal.Wrap(err)
-	}
-	pgs := make([]*models.UserPermissionGroup, len(results))
-	for i := range results {
-		pgs[i] = &results[i]
-	}
-	return pgs, nil
-}
-
 // GetUserPermissionGroupByName returns a permission group by name.
 func GetUserPermissionGroupByName(ctx context.Context, tx *gorm.DB, name string) (*models.UserPermissionGroup, error) {
 	pg, err := gorm.G[models.UserPermissionGroup](tx).

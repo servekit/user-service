@@ -332,3 +332,44 @@ func TestService_GetRole_WithPermissions(t *testing.T) {
 		t.Fatal("expected ErrRoleNotFound, got nil")
 	}
 }
+
+// TestService_Permission_UpdateConflict verifies UpdatePermission returns
+// ErrPermissionExists (409) when renaming to a resource:action another permission owns.
+func TestService_Permission_UpdateConflict(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	if _, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"}); err != nil {
+		t.Fatalf("create1: %v", err)
+	}
+	p2, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "write"})
+	if err != nil {
+		t.Fatalf("create2: %v", err)
+	}
+	// Rename p2 to "doc:read" which p1 already owns → should be ErrPermissionExists, not 500.
+	if _, err := svc.UpdatePermission(context.Background(), &pb.UpdatePermissionRequest{PermissionId: p2.GetId(), Action: "read"}); err == nil {
+		t.Fatal("expected ErrPermissionExists, got nil")
+	}
+}
+
+// TestService_PermissionGroup_UpdateConflict verifies UpdatePermissionGroup returns
+// ErrPermissionGroupExists when renaming to a name another group owns.
+func TestService_PermissionGroup_UpdateConflict(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	if _, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "g1"}); err != nil {
+		t.Fatalf("create1: %v", err)
+	}
+	pg2, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "g2"})
+	if err != nil {
+		t.Fatalf("create2: %v", err)
+	}
+	if _, err := svc.UpdatePermissionGroup(context.Background(), &pb.UpdatePermissionGroupRequest{PermissionGroupId: pg2.GetId(), Name: "g1"}); err == nil {
+		t.Fatal("expected ErrPermissionGroupExists, got nil")
+	}
+}

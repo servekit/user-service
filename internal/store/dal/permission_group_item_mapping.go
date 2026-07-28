@@ -2,7 +2,6 @@ package dal
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/servekit/user-service/internal/store/generated"
 	"github.com/servekit/user-service/internal/store/models"
@@ -38,31 +37,6 @@ func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permis
 		return xcodes.ErrInternal.Wrap(result.Error)
 	}
 	return nil
-}
-
-// ListPermissionsByGroupID returns all permissions in a permission group.
-// The JOIN explicitly filters pgi.deleted_at because GORM auto-applies
-// soft-delete only to the FROM table (UserPermission), not the joined
-// PermissionGroupItemMapping.
-func ListPermissionsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) ([]*models.UserPermission, error) {
-	permTable := resolveTableName(tx, &models.UserPermission{})
-	pgiTable := resolveTableName(tx, &models.PermissionGroupItemMapping{})
-	results, err := gorm.G[models.UserPermission](tx).
-		Raw(fmt.Sprintf(`SELECT %s.* FROM %s JOIN %s ON %s.permission_id = %s.id AND %s.deleted_at IS NULL WHERE %s.permission_group_id = ?`,
-			permTable, permTable,
-			pgiTable, pgiTable, permTable,
-			pgiTable,
-			pgiTable),
-			groupID).
-		Find(ctx)
-	if err != nil {
-		return nil, xcodes.ErrInternal.Wrap(err)
-	}
-	perms := make([]*models.UserPermission, len(results))
-	for i := range results {
-		perms[i] = &results[i]
-	}
-	return perms, nil
 }
 
 // ListPermissionGroupIDsByItemPermissionID returns the group IDs that contain a permission.

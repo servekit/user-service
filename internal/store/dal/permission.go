@@ -50,23 +50,10 @@ func GetUserPermissionByResourceAction(ctx context.Context, tx *gorm.DB, resourc
 	return &perm, nil
 }
 
-// ListAllUserPermissions returns all permissions.
-func ListAllUserPermissions(ctx context.Context, tx *gorm.DB) ([]*models.UserPermission, error) {
-	results, err := gorm.G[models.UserPermission](tx).Find(ctx)
-	if err != nil {
-		return nil, xcodes.ErrInternal.Wrap(err)
-	}
-	perms := make([]*models.UserPermission, len(results))
-	for i := range results {
-		perms[i] = &results[i]
-	}
-	return perms, nil
-}
-
 // ListUserPermissionsByPermissionGroupID returns all permissions in a permission group.
 // The JOIN explicitly filters pgi.deleted_at because GORM auto-applies
 // soft-delete only to the FROM table (UserPermission), not the joined
-// PermissionGroupItemMapping (mirrors ListPermissionsByGroupID).
+// PermissionGroupItemMapping.
 func ListUserPermissionsByPermissionGroupID(ctx context.Context, tx *gorm.DB, groupID int64) ([]*models.UserPermission, error) {
 	permTable := resolveTableName(tx, &models.UserPermission{})
 	pgiTable := resolveTableName(tx, &models.PermissionGroupItemMapping{})

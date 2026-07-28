@@ -50,6 +50,23 @@ func (s *Service) UpdatePermission(ctx context.Context, req *pb.UpdatePermission
 	if perm.IsBuiltin {
 		return nil, xcodes.ErrPermissionIsBuiltin.New()
 	}
+	newResource := perm.Resource
+	if req.Resource != "" {
+		newResource = req.Resource
+	}
+	newAction := perm.Action
+	if req.Action != "" {
+		newAction = req.Action
+	}
+	if newResource != perm.Resource || newAction != perm.Action {
+		if existing, err := dal.GetUserPermissionByResourceAction(ctx, s.db, newResource, newAction); err == nil {
+			if existing.ID != perm.ID {
+				return nil, xcodes.ErrPermissionExists.New()
+			}
+		} else if !errors.Is(err, xcodes.ErrPermissionNotFound.New()) {
+			return nil, err
+		}
+	}
 	if req.Resource != "" {
 		perm.Resource = req.Resource
 	}
@@ -70,6 +87,13 @@ func (s *Service) UpdatePermission(ctx context.Context, req *pb.UpdatePermission
 
 // DeletePermission removes a permission; builtin permissions are rejected.
 func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
+	perm, err := dal.GetUserPermissionByID(ctx, s.db, req.PermissionId)
+	if err != nil {
+		return nil, err
+	}
+	if perm.IsBuiltin {
+		return nil, xcodes.ErrPermissionIsBuiltin.New()
+	}
 	if err := s.invalidatePermissionCache(ctx, req.PermissionId); err != nil {
 		return nil, err
 	}
@@ -200,6 +224,19 @@ func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermi
 	if pg.IsBuiltin {
 		return nil, xcodes.ErrPermissionGroupIsBuiltin.New()
 	}
+	newName := pg.Name
+	if req.Name != "" {
+		newName = req.Name
+	}
+	if newName != pg.Name {
+		if existing, err := dal.GetUserPermissionGroupByName(ctx, s.db, newName); err == nil {
+			if existing.ID != pg.ID {
+				return nil, xcodes.ErrPermissionGroupExists.New()
+			}
+		} else if !errors.Is(err, xcodes.ErrPermissionGroupNotFound.New()) {
+			return nil, err
+		}
+	}
 	if req.Name != "" {
 		pg.Name = req.Name
 	}
@@ -210,7 +247,7 @@ func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermi
 		if err := dal.UpdateUserPermissionGroup(ctx, tx, pg); err != nil {
 			return err
 		}
-		existing, err := dal.ListPermissionsByGroupID(ctx, tx, pg.ID)
+		existing, err := dal.ListUserPermissionsByPermissionGroupID(ctx, tx, pg.ID)
 		if err != nil {
 			return err
 		}
@@ -236,6 +273,13 @@ func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermi
 
 // DeletePermissionGroup removes a permission group; builtin groups are rejected.
 func (s *Service) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
+	pg, err := dal.GetUserPermissionGroupByID(ctx, s.db, req.PermissionGroupId)
+	if err != nil {
+		return nil, err
+	}
+	if pg.IsBuiltin {
+		return nil, xcodes.ErrPermissionGroupIsBuiltin.New()
+	}
 	if err := s.invalidatePermissionGroupCache(ctx, req.PermissionGroupId); err != nil {
 		return nil, err
 	}
@@ -265,7 +309,7 @@ func (s *Service) ListPermissionGroups(ctx context.Context, req *pb.ListPermissi
 // permissionGroupWithItems builds a PermissionGroup proto with its permissions populated.
 func (s *Service) permissionGroupWithItems(ctx context.Context, pg *models.UserPermissionGroup) (*pb.PermissionGroup, error) {
 	out := permissionGroupModelToProto(pg)
-	perms, err := dal.ListPermissionsByGroupID(ctx, s.db, pg.ID)
+	perms, err := dal.ListUserPermissionsByPermissionGroupID(ctx, s.db, pg.ID)
 	if err != nil {
 		return nil, err
 	}
