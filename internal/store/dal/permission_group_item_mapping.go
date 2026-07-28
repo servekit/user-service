@@ -21,13 +21,21 @@ func AddPermissionToGroup(ctx context.Context, tx *gorm.DB, groupID, permissionI
 }
 
 // RemovePermissionFromGroup removes a permission from a permission group.
+//
+// Hard-deletes (Unscoped) rather than soft-deletes: PermissionGroupItemMapping is
+// a relationship join table with no audit value, and the unique index uq_pgi
+// (PermissionGroupID, PermissionID) includes soft-deleted rows in PostgreSQL,
+// so a soft-deleted (group, perm) pair would conflict on re-add within the
+// same transaction (e.g. UpdatePermissionGroup's full-replace when the new
+// set overlaps the old). gorm.G[T] does not expose Unscoped on its typed
+// chain, so we drop down to the standard *gorm.DB chain here.
 func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permissionID int64) error {
-	_, err := gorm.G[models.PermissionGroupItemMapping](tx).
+	result := tx.WithContext(ctx).Unscoped().
 		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
 		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
-		Delete(ctx)
-	if err != nil {
-		return xcodes.ErrInternal.Wrap(err)
+		Delete(&models.PermissionGroupItemMapping{})
+	if result.Error != nil {
+		return xcodes.ErrInternal.Wrap(result.Error)
 	}
 	return nil
 }

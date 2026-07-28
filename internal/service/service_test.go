@@ -253,3 +253,49 @@ func TestService_PermissionGroup_CRUD(t *testing.T) {
 		t.Fatalf("DeletePermissionGroup: %v", err)
 	}
 }
+
+// TestService_PermissionGroup_UpdateWithOverlap verifies UpdatePermissionGroup's
+// full-replace works when the new permission set overlaps the old one (regression
+// for the soft-delete + unique-index conflict on join tables).
+func TestService_PermissionGroup_UpdateWithOverlap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	p1, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
+	if err != nil {
+		t.Fatalf("p1: %v", err)
+	}
+	p2, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "write"})
+	if err != nil {
+		t.Fatalf("p2: %v", err)
+	}
+	p3, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "delete"})
+	if err != nil {
+		t.Fatalf("p3: %v", err)
+	}
+
+	// Group starts with [p1, p2].
+	pg, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "overlap", PermissionIds: []int64{p1.GetId(), p2.GetId()}})
+	if err != nil {
+		t.Fatalf("CreatePermissionGroup: %v", err)
+	}
+
+	// Replace with [p2, p3] — p2 is retained, p1 dropped, p3 added. Must not conflict.
+	if _, err := svc.UpdatePermissionGroup(context.Background(), &pb.UpdatePermissionGroupRequest{PermissionGroupId: pg.GetId(), PermissionIds: []int64{p2.GetId(), p3.GetId()}}); err != nil {
+		t.Fatalf("UpdatePermissionGroup with overlap: %v", err)
+	}
+
+	got, err := svc.GetPermissionGroup(context.Background(), &pb.GetPermissionGroupRequest{PermissionGroupId: pg.GetId()})
+	if err != nil {
+		t.Fatalf("GetPermissionGroup: %v", err)
+	}
+	gotIDs := map[int64]bool{}
+	for _, p := range got.GetPermissions() {
+		gotIDs[p.GetId()] = true
+	}
+	if !gotIDs[p2.GetId()] || !gotIDs[p3.GetId()] || gotIDs[p1.GetId()] {
+		t.Fatalf("expected {p2,p3}, got %v", gotIDs)
+	}
+}
