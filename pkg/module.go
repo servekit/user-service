@@ -12,6 +12,8 @@ import (
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/handler"
 	"github.com/servekit/user-service/pkg/option"
+
+	"gorm.io/gorm"
 )
 
 // NewModule creates a Handler from config. Returns *handler.Handler so callers
@@ -24,4 +26,14 @@ func NewModule(cfg *config.Config, opts ...option.Option) (*handler.Handler, err
 		return nil, err
 	}
 	return handler.New(svc), nil
+}
+
+// Migrate applies the current schema (GORM AutoMigrate) to db. It re-exports
+// handler.Migrate so embedders and the `migrate` subcommand share one entry
+// point:
+//
+//	userservice.Migrate(parentDB)                                // before NewModule
+//	hdl, err := userservice.NewModule(cfg, option.WithDB(parentDB))
+func Migrate(db *gorm.DB) error {
+	return handler.Migrate(db)
 }
