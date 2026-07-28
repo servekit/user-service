@@ -317,11 +317,32 @@ func (h *Handler) DeletePermission(ctx context.Context, req *pb.DeletePermission
 	return h.svc.DeletePermission(ctx, req)
 }
 
-// ListPermissionGroups: cursor-paginated permission-group catalog. Until the
-// service layer is migrated to the new paginated signature, pagination params
-// are ignored and the full list is returned in a single page.
-func (h *Handler) ListPermissionGroups(ctx context.Context, _ *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
-	return h.svc.ListPermissionGroups(ctx, &emptypb.Empty{})
+// ListPermissionGroups: cursor-paginated permission-group catalog.
+func (h *Handler) ListPermissionGroups(ctx context.Context, req *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
+	return h.svc.ListPermissionGroups(ctx, req)
+}
+
+// CreatePermissionGroup: creates a custom permission group and attaches the
+// given permission_ids. Builtin permission groups cannot be created via this RPC.
+func (h *Handler) CreatePermissionGroup(ctx context.Context, req *pb.CreatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return h.svc.CreatePermissionGroup(ctx, req)
+}
+
+// GetPermissionGroup returns a permission group by ID, with its permissions populated.
+func (h *Handler) GetPermissionGroup(ctx context.Context, req *pb.GetPermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return h.svc.GetPermissionGroup(ctx, req)
+}
+
+// UpdatePermissionGroup: FULLY REPLACES the group's permission set — pass the
+// complete list, not deltas. Invalidates cache for all affected users.
+func (h *Handler) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return h.svc.UpdatePermissionGroup(ctx, req)
+}
+
+// DeletePermissionGroup: builtin groups cannot be deleted. Invalidates cache
+// for all affected users.
+func (h *Handler) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
+	return h.svc.DeletePermissionGroup(ctx, req)
 }
 
 // AddGroupRole: grants a role to a group; members inherit. Invalidates cache

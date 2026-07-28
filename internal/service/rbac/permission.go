@@ -13,6 +13,7 @@ import (
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"google.golang.org/protobuf/types/known/emptypb"
+	"gorm.io/gorm"
 )
 
 // --- Permissions ---
@@ -155,17 +156,153 @@ func (s *Service) getUserIDsByPermission(ctx context.Context, permID int64) ([]i
 	return out, nil
 }
 
-// ListPermissionGroups returns all permission groups.
-func (s *Service) ListPermissionGroups(ctx context.Context, _ *emptypb.Empty) (*pb.ListPermissionGroupsResponse, error) {
-	pgs, err := dal.ListAllUserPermissionGroups(ctx, s.db)
+// --- PermissionGroups ---
+
+// CreatePermissionGroup creates a custom permission group and attaches the given permissions.
+func (s *Service) CreatePermissionGroup(ctx context.Context, req *pb.CreatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	if _, err := dal.GetUserPermissionGroupByName(ctx, s.db, req.Name); err == nil {
+		return nil, xcodes.ErrPermissionGroupExists.New()
+	} else if !errors.Is(err, xcodes.ErrPermissionGroupNotFound.New()) {
+		return nil, err
+	}
+	pg := &models.UserPermissionGroup{Name: req.Name, Description: req.Description}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := dal.CreateUserPermissionGroup(ctx, tx, pg); err != nil {
+			return err
+		}
+		for _, pid := range req.PermissionIds {
+			if err := dal.AddPermissionToGroup(ctx, tx, pg.ID, pid); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return s.permissionGroupWithItems(ctx, pg)
+}
+
+// GetPermissionGroup returns a permission group with its permissions populated.
+func (s *Service) GetPermissionGroup(ctx context.Context, req *pb.GetPermissionGroupRequest) (*pb.PermissionGroup, error) {
+	pg, err := dal.GetUserPermissionGroupByID(ctx, s.db, req.PermissionGroupId)
+	if err != nil {
+		return nil, err
+	}
+	return s.permissionGroupWithItems(ctx, pg)
+}
+
+// UpdatePermissionGroup updates name/description and FULLY REPLACES the group's permission set.
+func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	pg, err := dal.GetUserPermissionGroupByID(ctx, s.db, req.PermissionGroupId)
+	if err != nil {
+		return nil, err
+	}
+	if pg.IsBuiltin {
+		return nil, xcodes.ErrPermissionGroupIsBuiltin.New()
+	}
+	if req.Name != "" {
+		pg.Name = req.Name
+	}
+	if req.Description != "" {
+		pg.Description = req.Description
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := dal.UpdateUserPermissionGroup(ctx, tx, pg); err != nil {
+			return err
+		}
+		existing, err := dal.ListPermissionsByGroupID(ctx, tx, pg.ID)
+		if err != nil {
+			return err
+		}
+		for _, p := range existing {
+			if err := dal.RemovePermissionFromGroup(ctx, tx, pg.ID, p.ID); err != nil {
+				return err
+			}
+		}
+		for _, pid := range req.PermissionIds {
+			if err := dal.AddPermissionToGroup(ctx, tx, pg.ID, pid); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.invalidatePermissionGroupCache(ctx, pg.ID); err != nil {
+		return nil, err
+	}
+	return s.permissionGroupWithItems(ctx, pg)
+}
+
+// DeletePermissionGroup removes a permission group; builtin groups are rejected.
+func (s *Service) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
+	if err := s.invalidatePermissionGroupCache(ctx, req.PermissionGroupId); err != nil {
+		return nil, err
+	}
+	if err := dal.DeleteUserPermissionGroup(ctx, s.db, req.PermissionGroupId); err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// ListPermissionGroups returns cursor-paginated permission groups (without items).
+func (s *Service) ListPermissionGroups(ctx context.Context, req *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	pgs, nextCursor, err := dal.ListUserPermissionGroups(ctx, s.db, req.Cursor, pageSize)
 	if err != nil {
 		return nil, err
 	}
 	pbGroups := make([]*pb.PermissionGroup, len(pgs))
 	for i, pg := range pgs {
-		pbGroups[i] = &pb.PermissionGroup{Id: pg.ID, Name: pg.Name, Description: pg.Description}
+		pbGroups[i] = permissionGroupModelToProto(pg)
 	}
-	return &pb.ListPermissionGroupsResponse{Groups: pbGroups}, nil
+	return &pb.ListPermissionGroupsResponse{Groups: pbGroups, NextCursor: nextCursor}, nil
+}
+
+// permissionGroupWithItems builds a PermissionGroup proto with its permissions populated.
+func (s *Service) permissionGroupWithItems(ctx context.Context, pg *models.UserPermissionGroup) (*pb.PermissionGroup, error) {
+	out := permissionGroupModelToProto(pg)
+	perms, err := dal.ListPermissionsByGroupID(ctx, s.db, pg.ID)
+	if err != nil {
+		return nil, err
+	}
+	pbPerms := make([]*pb.Permission, len(perms))
+	for i, p := range perms {
+		pbPerms[i] = permissionModelToProto(p)
+	}
+	out.Permissions = pbPerms
+	return out, nil
+}
+
+// invalidatePermissionGroupCache drops caches for users holding any role that references this group.
+func (s *Service) invalidatePermissionGroupCache(ctx context.Context, pgID int64) error {
+	rpgs, err := dal.ListRolePermissionGroupMappingsByPermissionGroupID(ctx, s.db, pgID)
+	if err != nil {
+		return xcodes.ErrInternal.Wrap(err)
+	}
+	roleSet := make(map[int64]struct{})
+	for _, rpg := range rpgs {
+		roleSet[rpg.RoleID] = struct{}{}
+	}
+	userSet := make(map[int64]struct{})
+	for roleID := range roleSet {
+		users, err := s.getUserIDsByRole(ctx, roleID)
+		if err != nil {
+			return err
+		}
+		for _, u := range users {
+			userSet[u] = struct{}{}
+		}
+	}
+	for uid := range userSet {
+		if err := s.cache.InvalidateUser(ctx, uid); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // --- internal API used by middleware / cache ---

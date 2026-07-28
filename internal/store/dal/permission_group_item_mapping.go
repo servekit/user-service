@@ -33,13 +33,17 @@ func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permis
 }
 
 // ListPermissionsByGroupID returns all permissions in a permission group.
+// The JOIN explicitly filters pgi.deleted_at because GORM auto-applies
+// soft-delete only to the FROM table (UserPermission), not the joined
+// PermissionGroupItemMapping.
 func ListPermissionsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) ([]*models.UserPermission, error) {
 	permTable := resolveTableName(tx, &models.UserPermission{})
 	pgiTable := resolveTableName(tx, &models.PermissionGroupItemMapping{})
 	results, err := gorm.G[models.UserPermission](tx).
-		Raw(fmt.Sprintf(`SELECT %s.* FROM %s JOIN %s ON %s.permission_id = %s.id WHERE %s.permission_group_id = ?`,
+		Raw(fmt.Sprintf(`SELECT %s.* FROM %s JOIN %s ON %s.permission_id = %s.id AND %s.deleted_at IS NULL WHERE %s.permission_group_id = ?`,
 			permTable, permTable,
 			pgiTable, pgiTable, permTable,
+			pgiTable,
 			pgiTable),
 			groupID).
 		Find(ctx)

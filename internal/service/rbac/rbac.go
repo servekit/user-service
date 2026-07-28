@@ -76,3 +76,14 @@ func permissionModelToProto(p *models.UserPermission) *pb.Permission {
 		IsBuiltin:   p.IsBuiltin,
 	}
 }
+
+// permissionGroupModelToProto returns a PermissionGroup proto WITHOUT its
+// permissions populated. Use permissionGroupWithItems for the full list.
+func permissionGroupModelToProto(pg *models.UserPermissionGroup) *pb.PermissionGroup {
+	return &pb.PermissionGroup{
+		Id:          pg.ID,
+		Name:        pg.Name,
+		Description: pg.Description,
+		IsBuiltin:   pg.IsBuiltin,
+	}
+}

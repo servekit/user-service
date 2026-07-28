@@ -658,8 +658,28 @@ func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermission
 }
 
 // ListPermissionGroups delegates to rbac subpackage.
-func (s *Service) ListPermissionGroups(ctx context.Context, req *emptypb.Empty) (*pb.ListPermissionGroupsResponse, error) {
+func (s *Service) ListPermissionGroups(ctx context.Context, req *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
 	return s.rbacSvc.ListPermissionGroups(ctx, req)
+}
+
+// CreatePermissionGroup delegates to rbac subpackage.
+func (s *Service) CreatePermissionGroup(ctx context.Context, req *pb.CreatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return s.rbacSvc.CreatePermissionGroup(ctx, req)
+}
+
+// GetPermissionGroup delegates to rbac subpackage.
+func (s *Service) GetPermissionGroup(ctx context.Context, req *pb.GetPermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return s.rbacSvc.GetPermissionGroup(ctx, req)
+}
+
+// UpdatePermissionGroup delegates to rbac subpackage.
+func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermissionGroupRequest) (*pb.PermissionGroup, error) {
+	return s.rbacSvc.UpdatePermissionGroup(ctx, req)
+}
+
+// DeletePermissionGroup delegates to rbac subpackage.
+func (s *Service) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
+	return s.rbacSvc.DeletePermissionGroup(ctx, req)
 }
 
 // AddGroupRole delegates to rbac subpackage.

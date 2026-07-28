@@ -205,3 +205,51 @@ func TestService_Permission_CRUD(t *testing.T) {
 		t.Fatal("expected ErrPermissionNotFound after delete, got nil")
 	}
 }
+
+// TestService_PermissionGroup_CRUD exercises the full-stack PermissionGroup CRUD
+// chain: handler → service.Service facade → rbac.Service → dal. Covers
+// create/get-with-items/duplicate-name-conflict/update-full-replace-to-empty/delete.
+func TestService_PermissionGroup_CRUD(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	perm, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
+	if err != nil {
+		t.Fatalf("CreatePermission: %v", err)
+	}
+
+	pg, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "docs-readonly", PermissionIds: []int64{perm.GetId()}})
+	if err != nil {
+		t.Fatalf("CreatePermissionGroup: %v", err)
+	}
+
+	got, err := svc.GetPermissionGroup(context.Background(), &pb.GetPermissionGroupRequest{PermissionGroupId: pg.GetId()})
+	if err != nil {
+		t.Fatalf("GetPermissionGroup: %v", err)
+	}
+	if len(got.GetPermissions()) != 1 || got.GetPermissions()[0].GetId() != perm.GetId() {
+		t.Fatalf("group permissions not populated: %+v", got.GetPermissions())
+	}
+
+	if _, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "docs-readonly"}); err == nil {
+		t.Fatal("expected ErrPermissionGroupExists, got nil")
+	}
+
+	upd, err := svc.UpdatePermissionGroup(context.Background(), &pb.UpdatePermissionGroupRequest{PermissionGroupId: pg.GetId(), Name: "docs-empty", PermissionIds: nil})
+	if err != nil {
+		t.Fatalf("UpdatePermissionGroup: %v", err)
+	}
+	if upd.GetName() != "docs-empty" {
+		t.Fatalf("name not updated: %+v", upd)
+	}
+	got2, _ := svc.GetPermissionGroup(context.Background(), &pb.GetPermissionGroupRequest{PermissionGroupId: pg.GetId()})
+	if len(got2.GetPermissions()) != 0 {
+		t.Fatalf("expected items fully replaced to empty, got %d", len(got2.GetPermissions()))
+	}
+
+	if _, err := svc.DeletePermissionGroup(context.Background(), &pb.DeletePermissionGroupRequest{PermissionGroupId: pg.GetId()}); err != nil {
+		t.Fatalf("DeletePermissionGroup: %v", err)
+	}
+}
