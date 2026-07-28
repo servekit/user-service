@@ -66,3 +66,13 @@ func roleModelToProto(r *models.UserRole) *pb.Role {
 	}
 	return p
 }
+
+func permissionModelToProto(p *models.UserPermission) *pb.Permission {
+	return &pb.Permission{
+		Id:          p.ID,
+		Resource:    p.Resource,
+		Action:      p.Action,
+		Description: p.Description,
+		IsBuiltin:   p.IsBuiltin,
+	}
+}

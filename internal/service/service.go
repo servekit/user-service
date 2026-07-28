@@ -36,12 +36,12 @@ import (
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
 	"github.com/servekit/user-service/internal/identity/tencent/wechat"
 	"github.com/servekit/user-service/internal/jobs"
-	"github.com/servekit/user-service/internal/version"
 	authsvc "github.com/servekit/user-service/internal/service/auth"
 	rbacsvc "github.com/servekit/user-service/internal/service/rbac"
 	"github.com/servekit/user-service/internal/service/session"
 	socialsvc "github.com/servekit/user-service/internal/service/social"
 	usersvc "github.com/servekit/user-service/internal/service/user"
+	"github.com/servekit/user-service/internal/version"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
 	"github.com/servekit/user-service/pkg/thirdcall"
@@ -633,8 +633,28 @@ func (s *Service) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 }
 
 // ListPermissions delegates to rbac subpackage.
-func (s *Service) ListPermissions(ctx context.Context, req *emptypb.Empty) (*pb.ListPermissionsResponse, error) {
+func (s *Service) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	return s.rbacSvc.ListPermissions(ctx, req)
+}
+
+// CreatePermission delegates to rbac subpackage.
+func (s *Service) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.Permission, error) {
+	return s.rbacSvc.CreatePermission(ctx, req)
+}
+
+// GetPermission delegates to rbac subpackage.
+func (s *Service) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.Permission, error) {
+	return s.rbacSvc.GetPermission(ctx, req)
+}
+
+// UpdatePermission delegates to rbac subpackage.
+func (s *Service) UpdatePermission(ctx context.Context, req *pb.UpdatePermissionRequest) (*pb.Permission, error) {
+	return s.rbacSvc.UpdatePermission(ctx, req)
+}
+
+// DeletePermission delegates to rbac subpackage.
+func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
+	return s.rbacSvc.DeletePermission(ctx, req)
 }
 
 // ListPermissionGroups delegates to rbac subpackage.

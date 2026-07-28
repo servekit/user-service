@@ -2,6 +2,11 @@ package service_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -71,7 +76,10 @@ func testConfig() *config.Config {
 			GitHub: &config.OAuthGitHubConfig{RedirectURL: "https://auth.example.com/oauth/callback"},
 			Google: &config.OAuthGoogleConfig{RedirectURL: "https://auth.example.com/oauth/callback"},
 			WeChat: &config.OAuthWeChatConfig{RedirectURL: "https://auth.example.com/oauth/callback"},
-			Apple:  &config.OAuthAppleConfig{RedirectURL: "https://auth.example.com/oauth/callback"},
+			Apple: &config.OAuthAppleConfig{
+				RedirectURL: "https://auth.example.com/oauth/callback",
+				PrivateKey:  testAppleKeyPEM,
+			},
 		},
 		ThirdParty: &config.ThirdPartyConfig{},
 		RateLimit:  &config.RateLimitConfig{},
@@ -80,6 +88,39 @@ func testConfig() *config.Config {
 }
 
 // --- test helpers ---
+
+// testAppleKeyPEM is a valid in-memory P-256 PKCS#8 key used to satisfy
+// apple.New during service construction in tests. Generated once per package.
+var testAppleKeyPEM = func() string {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+}()
+
+// newTestService builds a Service wired to a fresh test DB + Redis, migrated.
+func newTestService(t *testing.T) *service.Service {
+	t.Helper()
+	db := dbx.SetupTestDB(t)
+	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	rdb := redisx.NewTestClient(t)
+	cap, err := captcha.New(&captcha.Config{MaxAttempts: 3, Purposes: map[string]*captcha.PurposeConfig{"test": {}}}, captcha.WithRedisClient(rdb))
+	if err != nil {
+		t.Fatalf("captcha.New: %v", err)
+	}
+	svc, _, err := service.New(testConfig(), option.WithDB(db), option.WithRedis(rdb), option.WithGIDService(stubGID()), option.WithCaptcha(cap), option.WithMessageService(stubMessage()))
+	if err != nil {
+		t.Fatalf("service.New: %v", err)
+	}
+	return svc
+}
 
 // stubGIDService is a thirdcall.GIDService that issues sequential IDs starting at 1000.
 type stubGIDService struct{ next int64 }
@@ -107,3 +148,60 @@ func (stubMessageService) Close() error { return nil }
 func stubMessage() thirdcall.MessageService { return stubMessageService{} }
 
 var _ thirdcall.MessageService = stubMessageService{}
+
+// TestService_Permission_CRUD exercises the full-stack Permission CRUD chain:
+// service.Service facade → rbac.Service → dal. Covers create/get/duplicate
+// conflict/update/not-found/list/delete and the builtin guard via dal.
+func TestService_Permission_CRUD(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	created, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "document", Action: "read", Description: "read docs"})
+	if err != nil {
+		t.Fatalf("CreatePermission: %v", err)
+	}
+	if created.GetId() == 0 || created.GetIsBuiltin() {
+		t.Fatalf("unexpected created permission: %+v", created)
+	}
+
+	got, err := svc.GetPermission(context.Background(), &pb.GetPermissionRequest{PermissionId: created.GetId()})
+	if err != nil {
+		t.Fatalf("GetPermission: %v", err)
+	}
+	if got.GetResource() != "document" || got.GetAction() != "read" {
+		t.Fatalf("GetPermission mismatch: %+v", got)
+	}
+
+	if _, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "document", Action: "read"}); err == nil {
+		t.Fatal("expected ErrPermissionExists, got nil")
+	}
+
+	upd, err := svc.UpdatePermission(context.Background(), &pb.UpdatePermissionRequest{PermissionId: created.GetId(), Description: "read all docs"})
+	if err != nil {
+		t.Fatalf("UpdatePermission: %v", err)
+	}
+	if upd.GetDescription() != "read all docs" {
+		t.Fatalf("update not applied: %+v", upd)
+	}
+
+	if _, err := svc.GetPermission(context.Background(), &pb.GetPermissionRequest{PermissionId: 999999}); err == nil {
+		t.Fatal("expected ErrPermissionNotFound, got nil")
+	}
+
+	list, err := svc.ListPermissions(context.Background(), &pb.ListPermissionsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("ListPermissions: %v", err)
+	}
+	if len(list.GetPermissions()) == 0 {
+		t.Fatal("ListPermissions returned empty")
+	}
+
+	if _, err := svc.DeletePermission(context.Background(), &pb.DeletePermissionRequest{PermissionId: created.GetId()}); err != nil {
+		t.Fatalf("DeletePermission: %v", err)
+	}
+	if _, err := svc.GetPermission(context.Background(), &pb.GetPermissionRequest{PermissionId: created.GetId()}); err == nil {
+		t.Fatal("expected ErrPermissionNotFound after delete, got nil")
+	}
+}

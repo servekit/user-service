@@ -2,12 +2,14 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/cache"
 	"github.com/servekit/user-service/internal/store/dal"
+	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -15,17 +17,142 @@ import (
 
 // --- Permissions ---
 
-// ListPermissions returns all permissions.
-func (s *Service) ListPermissions(ctx context.Context, _ *emptypb.Empty) (*pb.ListPermissionsResponse, error) {
-	perms, err := dal.ListAllUserPermissions(ctx, s.db)
+// CreatePermission adds a custom (non-builtin) permission.
+func (s *Service) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.Permission, error) {
+	if _, err := dal.GetUserPermissionByResourceAction(ctx, s.db, req.Resource, req.Action); err == nil {
+		return nil, xcodes.ErrPermissionExists.New()
+	} else if !errors.Is(err, xcodes.ErrPermissionNotFound.New()) {
+		return nil, err
+	}
+	perm := &models.UserPermission{Resource: req.Resource, Action: req.Action, Description: req.Description}
+	if err := dal.CreateUserPermission(ctx, s.db, perm); err != nil {
+		return nil, err
+	}
+	return permissionModelToProto(perm), nil
+}
+
+// GetPermission returns a permission by ID.
+func (s *Service) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.Permission, error) {
+	perm, err := dal.GetUserPermissionByID(ctx, s.db, req.PermissionId)
+	if err != nil {
+		return nil, err
+	}
+	return permissionModelToProto(perm), nil
+}
+
+// UpdatePermission updates a permission; builtin permissions are rejected.
+func (s *Service) UpdatePermission(ctx context.Context, req *pb.UpdatePermissionRequest) (*pb.Permission, error) {
+	perm, err := dal.GetUserPermissionByID(ctx, s.db, req.PermissionId)
+	if err != nil {
+		return nil, err
+	}
+	if perm.IsBuiltin {
+		return nil, xcodes.ErrPermissionIsBuiltin.New()
+	}
+	if req.Resource != "" {
+		perm.Resource = req.Resource
+	}
+	if req.Action != "" {
+		perm.Action = req.Action
+	}
+	if req.Description != "" {
+		perm.Description = req.Description
+	}
+	if err := dal.UpdateUserPermission(ctx, s.db, perm); err != nil {
+		return nil, err
+	}
+	if err := s.invalidatePermissionCache(ctx, req.PermissionId); err != nil {
+		return nil, err
+	}
+	return permissionModelToProto(perm), nil
+}
+
+// DeletePermission removes a permission; builtin permissions are rejected.
+func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
+	if err := s.invalidatePermissionCache(ctx, req.PermissionId); err != nil {
+		return nil, err
+	}
+	if err := dal.DeleteUserPermission(ctx, s.db, req.PermissionId); err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+// ListPermissions returns cursor-paginated permissions.
+func (s *Service) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	perms, nextCursor, err := dal.ListUserPermissions(ctx, s.db, req.Cursor, pageSize)
 	if err != nil {
 		return nil, err
 	}
 	pbPerms := make([]*pb.Permission, len(perms))
 	for i, p := range perms {
-		pbPerms[i] = &pb.Permission{Id: p.ID, Resource: p.Resource, Action: p.Action, Description: p.Description}
+		pbPerms[i] = permissionModelToProto(p)
 	}
-	return &pb.ListPermissionsResponse{Permissions: pbPerms}, nil
+	return &pb.ListPermissionsResponse{Permissions: pbPerms, NextCursor: nextCursor}, nil
+}
+
+// --- cache invalidation helpers ---
+
+// invalidatePermissionCache drops resolved-permission caches for every user who
+// holds the permission via any role (direct or via a permission group).
+func (s *Service) invalidatePermissionCache(ctx context.Context, permID int64) error {
+	userIDs, err := s.getUserIDsByPermission(ctx, permID)
+	if err != nil {
+		return err
+	}
+	for _, uid := range userIDs {
+		if err := s.cache.InvalidateUser(ctx, uid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// getUserIDsByPermission resolves permission → roles (direct + via groups) → users.
+func (s *Service) getUserIDsByPermission(ctx context.Context, permID int64) ([]int64, error) {
+	roleSet := make(map[int64]struct{})
+
+	direct, err := dal.ListRolePermissionMappingsByPermissionID(ctx, s.db, permID)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	for _, rp := range direct {
+		roleSet[rp.RoleID] = struct{}{}
+	}
+
+	groupIDs, err := dal.ListPermissionGroupIDsByItemPermissionID(ctx, s.db, permID)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	for _, pgid := range groupIDs {
+		rpgs, err := dal.ListRolePermissionGroupMappingsByPermissionGroupID(ctx, s.db, pgid)
+		if err != nil {
+			return nil, xcodes.ErrInternal.Wrap(err)
+		}
+		for _, rpg := range rpgs {
+			roleSet[rpg.RoleID] = struct{}{}
+		}
+	}
+
+	userSet := make(map[int64]struct{})
+	for roleID := range roleSet {
+		users, err := s.getUserIDsByRole(ctx, roleID)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range users {
+			userSet[u] = struct{}{}
+		}
+	}
+	out := make([]int64, 0, len(userSet))
+	for u := range userSet {
+		out = append(out, u)
+	}
+	return out, nil
 }
 
 // ListPermissionGroups returns all permission groups.

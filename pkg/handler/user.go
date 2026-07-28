@@ -292,11 +292,29 @@ func (h *Handler) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 	return h.svc.ListRoles(ctx, req)
 }
 
-// ListPermissions: cursor-paginated permission catalog. Until the service layer
-// is migrated to the new paginated signature, pagination params are ignored and
-// the full list is returned in a single page (next_cursor="", total=0).
-func (h *Handler) ListPermissions(ctx context.Context, _ *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
-	return h.svc.ListPermissions(ctx, &emptypb.Empty{})
+// ListPermissions: cursor-paginated permission catalog.
+func (h *Handler) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
+	return h.svc.ListPermissions(ctx, req)
+}
+
+// CreatePermission: adds a custom resource:action permission.
+func (h *Handler) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.Permission, error) {
+	return h.svc.CreatePermission(ctx, req)
+}
+
+// GetPermission returns a permission by ID.
+func (h *Handler) GetPermission(ctx context.Context, req *pb.GetPermissionRequest) (*pb.Permission, error) {
+	return h.svc.GetPermission(ctx, req)
+}
+
+// UpdatePermission: builtin permissions cannot be updated.
+func (h *Handler) UpdatePermission(ctx context.Context, req *pb.UpdatePermissionRequest) (*pb.Permission, error) {
+	return h.svc.UpdatePermission(ctx, req)
+}
+
+// DeletePermission: builtin permissions cannot be deleted.
+func (h *Handler) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
+	return h.svc.DeletePermission(ctx, req)
 }
 
 // ListPermissionGroups: cursor-paginated permission-group catalog. Until the
