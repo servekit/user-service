@@ -86,6 +86,8 @@ func (s *Service) UpdatePermission(ctx context.Context, req *pb.UpdatePermission
 }
 
 // DeletePermission removes a permission; builtin permissions are rejected.
+// Cascade-cleans orphan mapping rows (role assignments and group memberships)
+// in the same transaction before deleting the permission itself.
 func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
 	perm, err := dal.GetUserPermissionByID(ctx, s.db, req.PermissionId)
 	if err != nil {
@@ -97,7 +99,19 @@ func (s *Service) DeletePermission(ctx context.Context, req *pb.DeletePermission
 	if err := s.invalidatePermissionCache(ctx, req.PermissionId); err != nil {
 		return nil, err
 	}
-	if err := dal.DeleteUserPermission(ctx, s.db, req.PermissionId); err != nil {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Cascade-clean orphan references before removing the permission itself.
+		if err := dal.DeleteRolePermissionMappingsByPermissionID(ctx, tx, req.PermissionId); err != nil {
+			return err
+		}
+		if err := dal.DeletePermissionGroupItemMappingsByPermissionID(ctx, tx, req.PermissionId); err != nil {
+			return err
+		}
+		if err := dal.DeleteUserPermission(ctx, tx, req.PermissionId); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -272,6 +286,8 @@ func (s *Service) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermi
 }
 
 // DeletePermissionGroup removes a permission group; builtin groups are rejected.
+// Cascade-cleans orphan mapping rows (group item memberships and role references)
+// in the same transaction before deleting the group itself.
 func (s *Service) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
 	pg, err := dal.GetUserPermissionGroupByID(ctx, s.db, req.PermissionGroupId)
 	if err != nil {
@@ -283,7 +299,18 @@ func (s *Service) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermi
 	if err := s.invalidatePermissionGroupCache(ctx, req.PermissionGroupId); err != nil {
 		return nil, err
 	}
-	if err := dal.DeleteUserPermissionGroup(ctx, s.db, req.PermissionGroupId); err != nil {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := dal.DeletePermissionGroupItemMappingsByGroupID(ctx, tx, req.PermissionGroupId); err != nil {
+			return err
+		}
+		if err := dal.DeleteRolePermissionGroupMappingsByGroupID(ctx, tx, req.PermissionGroupId); err != nil {
+			return err
+		}
+		if err := dal.DeleteUserPermissionGroup(ctx, tx, req.PermissionGroupId); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

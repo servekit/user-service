@@ -53,3 +53,27 @@ func ListPermissionGroupIDsByItemPermissionID(ctx context.Context, tx *gorm.DB, 
 	}
 	return ids, nil
 }
+
+// DeletePermissionGroupItemMappingsByPermissionID removes every group membership
+// of a permission (cascade cleanup when the permission is deleted). Hard-deletes.
+func DeletePermissionGroupItemMappingsByPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) error {
+	result := tx.WithContext(ctx).Unscoped().
+		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
+		Delete(&models.PermissionGroupItemMapping{})
+	if result.Error != nil {
+		return xcodes.ErrInternal.Wrap(result.Error)
+	}
+	return nil
+}
+
+// DeletePermissionGroupItemMappingsByGroupID removes every permission in a group
+// (cascade cleanup when the group is deleted). Hard-deletes.
+func DeletePermissionGroupItemMappingsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) error {
+	result := tx.WithContext(ctx).Unscoped().
+		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
+		Delete(&models.PermissionGroupItemMapping{})
+	if result.Error != nil {
+		return xcodes.ErrInternal.Wrap(result.Error)
+	}
+	return nil
+}

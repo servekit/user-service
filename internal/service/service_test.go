@@ -20,10 +20,13 @@ import (
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/service"
+	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
 	"github.com/servekit/user-service/pkg/thirdcall"
+
+	"gorm.io/gorm"
 )
 
 // TestService_Login_UnknownUser verifies that the facade Service dispatches
@@ -104,7 +107,9 @@ var testAppleKeyPEM = func() string {
 }()
 
 // newTestService builds a Service wired to a fresh test DB + Redis, migrated.
-func newTestService(t *testing.T) *service.Service {
+// Returns the Service and the underlying *gorm.DB so callers can inspect join
+// rows directly when validating cascade-cleanup behavior.
+func newTestService(t *testing.T) (*service.Service, *gorm.DB) {
 	t.Helper()
 	db := dbx.SetupTestDB(t)
 	if err := db.AutoMigrate(models.AllModels()...); err != nil {
@@ -119,7 +124,7 @@ func newTestService(t *testing.T) *service.Service {
 	if err != nil {
 		t.Fatalf("service.New: %v", err)
 	}
-	return svc
+	return svc, db
 }
 
 // stubGIDService is a thirdcall.GIDService that issues sequential IDs starting at 1000.
@@ -156,7 +161,7 @@ func TestService_Permission_CRUD(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	created, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "document", Action: "read", Description: "read docs"})
 	if err != nil {
@@ -213,7 +218,7 @@ func TestService_PermissionGroup_CRUD(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	perm, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
 	if err != nil {
@@ -261,7 +266,7 @@ func TestService_PermissionGroup_UpdateWithOverlap(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	p1, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
 	if err != nil {
@@ -306,7 +311,7 @@ func TestService_GetRole_WithPermissions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	perm, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
 	if err != nil {
@@ -339,7 +344,7 @@ func TestService_Permission_UpdateConflict(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	if _, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"}); err != nil {
 		t.Fatalf("create1: %v", err)
@@ -360,7 +365,7 @@ func TestService_PermissionGroup_UpdateConflict(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	svc := newTestService(t)
+	svc, _ := newTestService(t)
 
 	if _, err := svc.CreatePermissionGroup(context.Background(), &pb.CreatePermissionGroupRequest{Name: "g1"}); err != nil {
 		t.Fatalf("create1: %v", err)
@@ -371,5 +376,120 @@ func TestService_PermissionGroup_UpdateConflict(t *testing.T) {
 	}
 	if _, err := svc.UpdatePermissionGroup(context.Background(), &pb.UpdatePermissionGroupRequest{PermissionGroupId: pg2.GetId(), Name: "g1"}); err == nil {
 		t.Fatal("expected ErrPermissionGroupExists, got nil")
+	}
+}
+
+// TestService_UpdateRole_WithOverlap verifies UpdateRole's full-replace works
+// when the new permission set overlaps the old (regression for the soft-delete +
+// unique-index conflict on RemoveRolePermissionMapping).
+func TestService_UpdateRole_WithOverlap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc, _ := newTestService(t)
+	ctx := context.Background()
+
+	p1, err := svc.CreatePermission(ctx, &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
+	if err != nil {
+		t.Fatalf("p1: %v", err)
+	}
+	p2, err := svc.CreatePermission(ctx, &pb.CreatePermissionRequest{Resource: "doc", Action: "write"})
+	if err != nil {
+		t.Fatalf("p2: %v", err)
+	}
+	p3, err := svc.CreatePermission(ctx, &pb.CreatePermissionRequest{Resource: "doc", Action: "delete"})
+	if err != nil {
+		t.Fatalf("p3: %v", err)
+	}
+
+	role, err := svc.CreateRole(ctx, &pb.CreateRoleRequest{Name: "editor", PermissionIds: []int64{p1.GetId(), p2.GetId()}})
+	if err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+
+	// Replace [p1,p2] with [p2,p3] — p2 retained. Must not hit unique conflict.
+	if _, err := svc.UpdateRole(ctx, &pb.UpdateRoleRequest{RoleId: role.GetId(), PermissionIds: []int64{p2.GetId(), p3.GetId()}}); err != nil {
+		t.Fatalf("UpdateRole with overlap: %v", err)
+	}
+
+	got, err := svc.GetRole(ctx, &pb.GetRoleRequest{RoleId: role.GetId()})
+	if err != nil {
+		t.Fatalf("GetRole: %v", err)
+	}
+	ids := map[int64]bool{}
+	for _, p := range got.GetPermissions() {
+		ids[p.GetId()] = true
+	}
+	if !ids[p2.GetId()] || !ids[p3.GetId()] || ids[p1.GetId()] {
+		t.Fatalf("expected {p2,p3}, got %v", ids)
+	}
+}
+
+// TestService_DeletePermission_ClearsMappings verifies that deleting a permission
+// also removes the role_permission_mapping and permission_group_item_mapping rows
+// referencing it (no orphan rows left behind).
+func TestService_DeletePermission_ClearsMappings(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	perm, err := svc.CreatePermission(ctx, &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
+	if err != nil {
+		t.Fatalf("CreatePermission: %v", err)
+	}
+	if _, err := svc.CreateRole(ctx, &pb.CreateRoleRequest{Name: "r", PermissionIds: []int64{perm.GetId()}}); err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+	if _, err := svc.CreatePermissionGroup(ctx, &pb.CreatePermissionGroupRequest{Name: "g", PermissionIds: []int64{perm.GetId()}}); err != nil {
+		t.Fatalf("CreatePermissionGroup: %v", err)
+	}
+
+	if rps, err := dal.ListRolePermissionMappingsByPermissionID(ctx, db, perm.GetId()); err != nil || len(rps) != 1 {
+		t.Fatalf("pre-delete: expected 1 role-permission mapping, got %d (err %v)", len(rps), err)
+	}
+
+	if _, err := svc.DeletePermission(ctx, &pb.DeletePermissionRequest{PermissionId: perm.GetId()}); err != nil {
+		t.Fatalf("DeletePermission: %v", err)
+	}
+
+	if rps, err := dal.ListRolePermissionMappingsByPermissionID(ctx, db, perm.GetId()); err != nil || len(rps) != 0 {
+		t.Errorf("post-delete: expected 0 role-permission mappings, got %d (err %v)", len(rps), err)
+	}
+	if gids, err := dal.ListPermissionGroupIDsByItemPermissionID(ctx, db, perm.GetId()); err != nil || len(gids) != 0 {
+		t.Errorf("post-delete: expected 0 group-item mappings, got %d (err %v)", len(gids), err)
+	}
+}
+
+// TestService_DeletePermissionGroup_ClearsMappings verifies that deleting a
+// permission group also removes its item rows and role references.
+func TestService_DeletePermissionGroup_ClearsMappings(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	pg, err := svc.CreatePermissionGroup(ctx, &pb.CreatePermissionGroupRequest{Name: "g"})
+	if err != nil {
+		t.Fatalf("CreatePermissionGroup: %v", err)
+	}
+	role, err := svc.CreateRole(ctx, &pb.CreateRoleRequest{Name: "r", PermissionGroupIds: []int64{pg.GetId()}})
+	if err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+	_ = role
+
+	if rpgs, err := dal.ListRolePermissionGroupMappingsByPermissionGroupID(ctx, db, pg.GetId()); err != nil || len(rpgs) != 1 {
+		t.Fatalf("pre-delete: expected 1 role-group mapping, got %d (err %v)", len(rpgs), err)
+	}
+
+	if _, err := svc.DeletePermissionGroup(ctx, &pb.DeletePermissionGroupRequest{PermissionGroupId: pg.GetId()}); err != nil {
+		t.Fatalf("DeletePermissionGroup: %v", err)
+	}
+
+	if rpgs, err := dal.ListRolePermissionGroupMappingsByPermissionGroupID(ctx, db, pg.GetId()); err != nil || len(rpgs) != 0 {
+		t.Errorf("post-delete: expected 0 role-group mappings, got %d (err %v)", len(rpgs), err)
 	}
 }
