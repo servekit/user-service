@@ -1,9 +1,20 @@
 .PHONY: all build build-dev test lint generate migrate-up migrate-down fmt vet tidy run proto
 
-# LDFLAGS strips symbol table (-s) and DWARF (-w) and trims local file paths
-# (-trimpath) for a smaller, reproducible production binary. Use `make build-dev`
-# when you need dlv-debuggable binaries or full panic stack traces.
-LDFLAGS := -s -w
+# Build-time version info injected via -ldflags into internal/version.
+VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BRANCH    ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+BUILDTIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION_PKG := github.com/servekit/user-service/internal/version
+
+# LDFLAGS strips symbol table (-s) and DWARF (-w) and injects version info;
+# GOFLAGS trims local file paths for a smaller, reproducible production binary.
+# Use `make build-dev` when you need dlv-debuggable binaries or full panic stack traces.
+LDFLAGS := -s -w \
+           -X $(VERSION_PKG).Version=$(VERSION) \
+           -X $(VERSION_PKG).GitCommit=$(COMMIT) \
+           -X $(VERSION_PKG).GitBranch=$(BRANCH) \
+           -X $(VERSION_PKG).BuildTime=$(BUILDTIME)
 GOFLAGS := -trimpath
 
 # Published binary name. Override to ship under a different name without
@@ -12,7 +23,7 @@ GOFLAGS := -trimpath
 BIN_NAME := user-service
 CMD_DIR  := cmd/server
 
-## build: Build the user-service binary (server + migrate in one)
+## build: Build the user-service binary (version info via -ldflags)
 build:
 	go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o bin/$(BIN_NAME) ./$(CMD_DIR)/
 

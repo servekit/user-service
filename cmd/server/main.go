@@ -20,6 +20,8 @@ import (
 	pkg "github.com/servekit/user-service/pkg"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
+
+	"github.com/servekit/user-service/internal/version"
 )
 
 func main() {
@@ -53,6 +55,7 @@ func runServer() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 	logging.Setup(cfg.Log)
+	slog.Info("starting", "service", "user-service", "version", version.Get().String())
 
 	srv, warnings, err := pkg.NewServer(
 		cfg,

@@ -39,6 +39,11 @@ func (h *Handler) Start() error { return h.svc.Start() }
 // Stop delegates to the underlying service, stopping all owned components.
 func (h *Handler) Stop() error { return h.svc.Stop() }
 
+// Ping is a health-check RPC.
+func (h *Handler) Ping(ctx context.Context, _ *emptypb.Empty) (*pb.Pong, error) {
+	return h.svc.Ping(ctx)
+}
+
 // --- gRPC method delegations ---
 // Each method delegates to internal/service. Comments below describe "how to
 // use" (prerequisites, side effects, follow-up RPCs) for in-process module
