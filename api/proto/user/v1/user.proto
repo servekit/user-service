@@ -518,20 +518,72 @@ service UserService {
     option (google.api.http) = {get: "/v1/admin/roles"};
   }
 
+  // GetRole returns a role by ID, including its permissions and permission groups.
+  rpc GetRole(GetRoleRequest) returns (Role) {
+    option (google.api.http) = {get: "/v1/admin/roles/{role_id}"};
+  }
+
   // ============================================================
-  // RBAC — Permissions — read-only catalog (managed via DB migrations).
+  // RBAC — Permissions — resource:action catalog. Builtins are seeded via
+  // migrations; custom permissions can be added via CreatePermission.
   // ============================================================
 
-  // ListPermissions returns all permissions (resource:action pairs). Use IDs
-  // when creating/updating roles. Permissions themselves are read-only — no
-  // create/update/delete RPC; they are seeded via DB migrations.
-  rpc ListPermissions(google.protobuf.Empty) returns (ListPermissionsResponse) {
+  // ListPermissions returns cursor-paginated permissions.
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse) {
     option (google.api.http) = {get: "/v1/admin/permissions"};
   }
 
-  // ListPermissionGroups returns permission groups (named bundles of
-  // permissions). Use IDs when creating/updating roles.
-  rpc ListPermissionGroups(google.protobuf.Empty) returns (ListPermissionGroupsResponse) {
+  // CreatePermission adds a new resource:action permission. Custom (non-builtin)
+  // only — builtins are seeded via migrations. Returns ErrPermissionExists if the
+  // resource:action pair already exists.
+  rpc CreatePermission(CreatePermissionRequest) returns (Permission) {
+    option (google.api.http) = {post: "/v1/admin/permissions" body: "*"};
+  }
+
+  // GetPermission returns a permission by ID.
+  rpc GetPermission(GetPermissionRequest) returns (Permission) {
+    option (google.api.http) = {get: "/v1/admin/permissions/{permission_id}"};
+  }
+
+  // UpdatePermission updates resource/action/description. Builtin permissions
+  // cannot be updated (ErrPermissionIsBuiltin). Changing resource/action on a
+  // permission in use invalidates caches of all affected users.
+  rpc UpdatePermission(UpdatePermissionRequest) returns (Permission) {
+    option (google.api.http) = {put: "/v1/admin/permissions/{permission_id}" body: "*"};
+  }
+
+  // DeletePermission removes a permission. Builtin permissions cannot be deleted.
+  // Invalidates caches of all users holding the permission via any role.
+  rpc DeletePermission(DeletePermissionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/admin/permissions/{permission_id}"};
+  }
+
+  // CreatePermissionGroup creates a named bundle of permissions (custom only).
+  // Group membership is managed via UpdatePermissionGroup (full replace).
+  rpc CreatePermissionGroup(CreatePermissionGroupRequest) returns (PermissionGroup) {
+    option (google.api.http) = {post: "/v1/admin/permission-groups" body: "*"};
+  }
+
+  // GetPermissionGroup returns a permission group by ID, including its permissions.
+  rpc GetPermissionGroup(GetPermissionGroupRequest) returns (PermissionGroup) {
+    option (google.api.http) = {get: "/v1/admin/permission-groups/{permission_group_id}"};
+  }
+
+  // UpdatePermissionGroup updates name/description and FULLY REPLACES the group's
+  // permission set — pass the complete list, not deltas. Builtin groups cannot be
+  // updated. Invalidates caches of affected users.
+  rpc UpdatePermissionGroup(UpdatePermissionGroupRequest) returns (PermissionGroup) {
+    option (google.api.http) = {put: "/v1/admin/permission-groups/{permission_group_id}" body: "*"};
+  }
+
+  // DeletePermissionGroup removes a group. Builtin groups cannot be deleted.
+  // Invalidates caches of affected users.
+  rpc DeletePermissionGroup(DeletePermissionGroupRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/admin/permission-groups/{permission_group_id}"};
+  }
+
+  // ListPermissionGroups returns cursor-paginated permission groups.
+  rpc ListPermissionGroups(ListPermissionGroupsRequest) returns (ListPermissionGroupsResponse) {
     option (google.api.http) = {get: "/v1/admin/permission-groups"};
   }
 
@@ -554,7 +606,7 @@ service UserService {
   }
 
   // ListGroupRoles returns roles granted to a group.
-  // NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+  // Returns roles attached to a group (direct grants).
   rpc ListGroupRoles(ListGroupRolesRequest) returns (ListGroupRolesResponse) {
     option (google.api.http) = {get: "/v1/admin/groups/{group_id}/roles"};
   }
@@ -578,7 +630,7 @@ service UserService {
   }
 
   // ListUserRoles returns roles for a user (direct + group-inherited).
-  // NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+  // Returns direct + group-inherited roles; see UserRole.source.
   rpc ListUserRoles(ListUserRolesRequest) returns (ListUserRolesResponse) {
     option (google.api.http) = {get: "/v1/admin/users/{user_id}/roles"};
   }
@@ -1226,10 +1278,39 @@ message Permission {
   string resource = 2;
   string action = 3;
   string description = 4;
+  bool is_builtin = 5;
+}
+
+message ListPermissionsRequest {
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  string cursor = 2 [(buf.validate.field).string.max_len = 64];
 }
 
 message ListPermissionsResponse {
   repeated Permission permissions = 1;
+  string next_cursor = 2;
+  int32 total = 3;
+}
+
+message CreatePermissionRequest {
+  string resource = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string action = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
+  string description = 3 [(buf.validate.field).string.max_len = 256];
+}
+
+message GetPermissionRequest {
+  int64 permission_id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message UpdatePermissionRequest {
+  int64 permission_id = 1 [(buf.validate.field).int64.gt = 0];
+  string resource = 2 [(buf.validate.field).string.max_len = 64];
+  string action = 3 [(buf.validate.field).string.max_len = 32];
+  string description = 4 [(buf.validate.field).string.max_len = 256];
+}
+
+message DeletePermissionRequest {
+  int64 permission_id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message PermissionGroup {
@@ -1237,10 +1318,43 @@ message PermissionGroup {
   string name = 2;
   string description = 3;
   repeated Permission permissions = 4;
+  bool is_builtin = 5;
+}
+
+message ListPermissionGroupsRequest {
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  string cursor = 2 [(buf.validate.field).string.max_len = 64];
 }
 
 message ListPermissionGroupsResponse {
   repeated PermissionGroup groups = 1;
+  string next_cursor = 2;
+  int32 total = 3;
+}
+
+message CreatePermissionGroupRequest {
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string description = 2 [(buf.validate.field).string.max_len = 512];
+  repeated int64 permission_ids = 3;
+}
+
+message GetPermissionGroupRequest {
+  int64 permission_group_id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message UpdatePermissionGroupRequest {
+  int64 permission_group_id = 1 [(buf.validate.field).int64.gt = 0];
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  string description = 3 [(buf.validate.field).string.max_len = 512];
+  repeated int64 permission_ids = 4;
+}
+
+message DeletePermissionGroupRequest {
+  int64 permission_group_id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message GetRoleRequest {
+  int64 role_id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 // ==================== RBAC: Group Roles ====================

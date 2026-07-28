@@ -292,16 +292,18 @@ func (h *Handler) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 	return h.svc.ListRoles(ctx, req)
 }
 
-// ListPermissions: read-only catalog (managed via DB migrations). Use IDs in
-// CreateRole / UpdateRole.
-func (h *Handler) ListPermissions(ctx context.Context, req *emptypb.Empty) (*pb.ListPermissionsResponse, error) {
-	return h.svc.ListPermissions(ctx, req)
+// ListPermissions: cursor-paginated permission catalog. Until the service layer
+// is migrated to the new paginated signature, pagination params are ignored and
+// the full list is returned in a single page (next_cursor="", total=0).
+func (h *Handler) ListPermissions(ctx context.Context, _ *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
+	return h.svc.ListPermissions(ctx, &emptypb.Empty{})
 }
 
-// ListPermissionGroups: read-only bundles of permissions. Use IDs in
-// CreateRole / UpdateRole.
-func (h *Handler) ListPermissionGroups(ctx context.Context, req *emptypb.Empty) (*pb.ListPermissionGroupsResponse, error) {
-	return h.svc.ListPermissionGroups(ctx, req)
+// ListPermissionGroups: cursor-paginated permission-group catalog. Until the
+// service layer is migrated to the new paginated signature, pagination params
+// are ignored and the full list is returned in a single page.
+func (h *Handler) ListPermissionGroups(ctx context.Context, _ *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
+	return h.svc.ListPermissionGroups(ctx, &emptypb.Empty{})
 }
 
 // AddGroupRole: grants a role to a group; members inherit. Invalidates cache

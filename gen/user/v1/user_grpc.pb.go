@@ -62,7 +62,16 @@ const (
 	UserService_UpdateRole_FullMethodName            = "/user.v1.UserService/UpdateRole"
 	UserService_DeleteRole_FullMethodName            = "/user.v1.UserService/DeleteRole"
 	UserService_ListRoles_FullMethodName             = "/user.v1.UserService/ListRoles"
+	UserService_GetRole_FullMethodName               = "/user.v1.UserService/GetRole"
 	UserService_ListPermissions_FullMethodName       = "/user.v1.UserService/ListPermissions"
+	UserService_CreatePermission_FullMethodName      = "/user.v1.UserService/CreatePermission"
+	UserService_GetPermission_FullMethodName         = "/user.v1.UserService/GetPermission"
+	UserService_UpdatePermission_FullMethodName      = "/user.v1.UserService/UpdatePermission"
+	UserService_DeletePermission_FullMethodName      = "/user.v1.UserService/DeletePermission"
+	UserService_CreatePermissionGroup_FullMethodName = "/user.v1.UserService/CreatePermissionGroup"
+	UserService_GetPermissionGroup_FullMethodName    = "/user.v1.UserService/GetPermissionGroup"
+	UserService_UpdatePermissionGroup_FullMethodName = "/user.v1.UserService/UpdatePermissionGroup"
+	UserService_DeletePermissionGroup_FullMethodName = "/user.v1.UserService/DeletePermissionGroup"
 	UserService_ListPermissionGroups_FullMethodName  = "/user.v1.UserService/ListPermissionGroups"
 	UserService_AddGroupRole_FullMethodName          = "/user.v1.UserService/AddGroupRole"
 	UserService_RemoveGroupRole_FullMethodName       = "/user.v1.UserService/RemoveGroupRole"
@@ -274,13 +283,37 @@ type UserServiceClient interface {
 	DeleteRole(ctx context.Context, in *DeleteRoleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ListRoles returns cursor-paginated roles.
 	ListRoles(ctx context.Context, in *ListRolesRequest, opts ...grpc.CallOption) (*ListRolesResponse, error)
-	// ListPermissions returns all permissions (resource:action pairs). Use IDs
-	// when creating/updating roles. Permissions themselves are read-only — no
-	// create/update/delete RPC; they are seeded via DB migrations.
-	ListPermissions(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListPermissionsResponse, error)
-	// ListPermissionGroups returns permission groups (named bundles of
-	// permissions). Use IDs when creating/updating roles.
-	ListPermissionGroups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListPermissionGroupsResponse, error)
+	// GetRole returns a role by ID, including its permissions and permission groups.
+	GetRole(ctx context.Context, in *GetRoleRequest, opts ...grpc.CallOption) (*Role, error)
+	// ListPermissions returns cursor-paginated permissions.
+	ListPermissions(ctx context.Context, in *ListPermissionsRequest, opts ...grpc.CallOption) (*ListPermissionsResponse, error)
+	// CreatePermission adds a new resource:action permission. Custom (non-builtin)
+	// only — builtins are seeded via migrations. Returns ErrPermissionExists if the
+	// resource:action pair already exists.
+	CreatePermission(ctx context.Context, in *CreatePermissionRequest, opts ...grpc.CallOption) (*Permission, error)
+	// GetPermission returns a permission by ID.
+	GetPermission(ctx context.Context, in *GetPermissionRequest, opts ...grpc.CallOption) (*Permission, error)
+	// UpdatePermission updates resource/action/description. Builtin permissions
+	// cannot be updated (ErrPermissionIsBuiltin). Changing resource/action on a
+	// permission in use invalidates caches of all affected users.
+	UpdatePermission(ctx context.Context, in *UpdatePermissionRequest, opts ...grpc.CallOption) (*Permission, error)
+	// DeletePermission removes a permission. Builtin permissions cannot be deleted.
+	// Invalidates caches of all users holding the permission via any role.
+	DeletePermission(ctx context.Context, in *DeletePermissionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// CreatePermissionGroup creates a named bundle of permissions (custom only).
+	// Group membership is managed via UpdatePermissionGroup (full replace).
+	CreatePermissionGroup(ctx context.Context, in *CreatePermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error)
+	// GetPermissionGroup returns a permission group by ID, including its permissions.
+	GetPermissionGroup(ctx context.Context, in *GetPermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error)
+	// UpdatePermissionGroup updates name/description and FULLY REPLACES the group's
+	// permission set — pass the complete list, not deltas. Builtin groups cannot be
+	// updated. Invalidates caches of affected users.
+	UpdatePermissionGroup(ctx context.Context, in *UpdatePermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error)
+	// DeletePermissionGroup removes a group. Builtin groups cannot be deleted.
+	// Invalidates caches of affected users.
+	DeletePermissionGroup(ctx context.Context, in *DeletePermissionGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// ListPermissionGroups returns cursor-paginated permission groups.
+	ListPermissionGroups(ctx context.Context, in *ListPermissionGroupsRequest, opts ...grpc.CallOption) (*ListPermissionGroupsResponse, error)
 	// AddGroupRole grants a role to a group — every current (and future)
 	// member inherits the role's permissions. Invalidates cache for all
 	// current group members.
@@ -290,7 +323,7 @@ type UserServiceClient interface {
 	// lose it; direct assignments (AssignRole) are unaffected.
 	RemoveGroupRole(ctx context.Context, in *RemoveGroupRoleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ListGroupRoles returns roles granted to a group.
-	// NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+	// Returns roles attached to a group (direct grants).
 	ListGroupRoles(ctx context.Context, in *ListGroupRolesRequest, opts ...grpc.CallOption) (*ListGroupRolesResponse, error)
 	// AssignRole grants a role directly to a user. Use AddGroupRole for
 	// group-wide permissions (members inherit). Invalidates the user's RBAC
@@ -301,7 +334,7 @@ type UserServiceClient interface {
 	// Invalidates the user's RBAC cache.
 	RevokeRole(ctx context.Context, in *RevokeRoleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ListUserRoles returns roles for a user (direct + group-inherited).
-	// NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+	// Returns direct + group-inherited roles; see UserRole.source.
 	ListUserRoles(ctx context.Context, in *ListUserRolesRequest, opts ...grpc.CallOption) (*ListUserRolesResponse, error)
 }
 
@@ -733,7 +766,17 @@ func (c *userServiceClient) ListRoles(ctx context.Context, in *ListRolesRequest,
 	return out, nil
 }
 
-func (c *userServiceClient) ListPermissions(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListPermissionsResponse, error) {
+func (c *userServiceClient) GetRole(ctx context.Context, in *GetRoleRequest, opts ...grpc.CallOption) (*Role, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Role)
+	err := c.cc.Invoke(ctx, UserService_GetRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) ListPermissions(ctx context.Context, in *ListPermissionsRequest, opts ...grpc.CallOption) (*ListPermissionsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPermissionsResponse)
 	err := c.cc.Invoke(ctx, UserService_ListPermissions_FullMethodName, in, out, cOpts...)
@@ -743,7 +786,87 @@ func (c *userServiceClient) ListPermissions(ctx context.Context, in *emptypb.Emp
 	return out, nil
 }
 
-func (c *userServiceClient) ListPermissionGroups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListPermissionGroupsResponse, error) {
+func (c *userServiceClient) CreatePermission(ctx context.Context, in *CreatePermissionRequest, opts ...grpc.CallOption) (*Permission, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Permission)
+	err := c.cc.Invoke(ctx, UserService_CreatePermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetPermission(ctx context.Context, in *GetPermissionRequest, opts ...grpc.CallOption) (*Permission, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Permission)
+	err := c.cc.Invoke(ctx, UserService_GetPermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) UpdatePermission(ctx context.Context, in *UpdatePermissionRequest, opts ...grpc.CallOption) (*Permission, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Permission)
+	err := c.cc.Invoke(ctx, UserService_UpdatePermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) DeletePermission(ctx context.Context, in *DeletePermissionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, UserService_DeletePermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) CreatePermissionGroup(ctx context.Context, in *CreatePermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PermissionGroup)
+	err := c.cc.Invoke(ctx, UserService_CreatePermissionGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetPermissionGroup(ctx context.Context, in *GetPermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PermissionGroup)
+	err := c.cc.Invoke(ctx, UserService_GetPermissionGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) UpdatePermissionGroup(ctx context.Context, in *UpdatePermissionGroupRequest, opts ...grpc.CallOption) (*PermissionGroup, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PermissionGroup)
+	err := c.cc.Invoke(ctx, UserService_UpdatePermissionGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) DeletePermissionGroup(ctx context.Context, in *DeletePermissionGroupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, UserService_DeletePermissionGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) ListPermissionGroups(ctx context.Context, in *ListPermissionGroupsRequest, opts ...grpc.CallOption) (*ListPermissionGroupsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPermissionGroupsResponse)
 	err := c.cc.Invoke(ctx, UserService_ListPermissionGroups_FullMethodName, in, out, cOpts...)
@@ -1015,13 +1138,37 @@ type UserServiceServer interface {
 	DeleteRole(context.Context, *DeleteRoleRequest) (*emptypb.Empty, error)
 	// ListRoles returns cursor-paginated roles.
 	ListRoles(context.Context, *ListRolesRequest) (*ListRolesResponse, error)
-	// ListPermissions returns all permissions (resource:action pairs). Use IDs
-	// when creating/updating roles. Permissions themselves are read-only — no
-	// create/update/delete RPC; they are seeded via DB migrations.
-	ListPermissions(context.Context, *emptypb.Empty) (*ListPermissionsResponse, error)
-	// ListPermissionGroups returns permission groups (named bundles of
-	// permissions). Use IDs when creating/updating roles.
-	ListPermissionGroups(context.Context, *emptypb.Empty) (*ListPermissionGroupsResponse, error)
+	// GetRole returns a role by ID, including its permissions and permission groups.
+	GetRole(context.Context, *GetRoleRequest) (*Role, error)
+	// ListPermissions returns cursor-paginated permissions.
+	ListPermissions(context.Context, *ListPermissionsRequest) (*ListPermissionsResponse, error)
+	// CreatePermission adds a new resource:action permission. Custom (non-builtin)
+	// only — builtins are seeded via migrations. Returns ErrPermissionExists if the
+	// resource:action pair already exists.
+	CreatePermission(context.Context, *CreatePermissionRequest) (*Permission, error)
+	// GetPermission returns a permission by ID.
+	GetPermission(context.Context, *GetPermissionRequest) (*Permission, error)
+	// UpdatePermission updates resource/action/description. Builtin permissions
+	// cannot be updated (ErrPermissionIsBuiltin). Changing resource/action on a
+	// permission in use invalidates caches of all affected users.
+	UpdatePermission(context.Context, *UpdatePermissionRequest) (*Permission, error)
+	// DeletePermission removes a permission. Builtin permissions cannot be deleted.
+	// Invalidates caches of all users holding the permission via any role.
+	DeletePermission(context.Context, *DeletePermissionRequest) (*emptypb.Empty, error)
+	// CreatePermissionGroup creates a named bundle of permissions (custom only).
+	// Group membership is managed via UpdatePermissionGroup (full replace).
+	CreatePermissionGroup(context.Context, *CreatePermissionGroupRequest) (*PermissionGroup, error)
+	// GetPermissionGroup returns a permission group by ID, including its permissions.
+	GetPermissionGroup(context.Context, *GetPermissionGroupRequest) (*PermissionGroup, error)
+	// UpdatePermissionGroup updates name/description and FULLY REPLACES the group's
+	// permission set — pass the complete list, not deltas. Builtin groups cannot be
+	// updated. Invalidates caches of affected users.
+	UpdatePermissionGroup(context.Context, *UpdatePermissionGroupRequest) (*PermissionGroup, error)
+	// DeletePermissionGroup removes a group. Builtin groups cannot be deleted.
+	// Invalidates caches of affected users.
+	DeletePermissionGroup(context.Context, *DeletePermissionGroupRequest) (*emptypb.Empty, error)
+	// ListPermissionGroups returns cursor-paginated permission groups.
+	ListPermissionGroups(context.Context, *ListPermissionGroupsRequest) (*ListPermissionGroupsResponse, error)
 	// AddGroupRole grants a role to a group — every current (and future)
 	// member inherits the role's permissions. Invalidates cache for all
 	// current group members.
@@ -1031,7 +1178,7 @@ type UserServiceServer interface {
 	// lose it; direct assignments (AssignRole) are unaffected.
 	RemoveGroupRole(context.Context, *RemoveGroupRoleRequest) (*emptypb.Empty, error)
 	// ListGroupRoles returns roles granted to a group.
-	// NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+	// Returns roles attached to a group (direct grants).
 	ListGroupRoles(context.Context, *ListGroupRolesRequest) (*ListGroupRolesResponse, error)
 	// AssignRole grants a role directly to a user. Use AddGroupRole for
 	// group-wide permissions (members inherit). Invalidates the user's RBAC
@@ -1042,7 +1189,7 @@ type UserServiceServer interface {
 	// Invalidates the user's RBAC cache.
 	RevokeRole(context.Context, *RevokeRoleRequest) (*emptypb.Empty, error)
 	// ListUserRoles returns roles for a user (direct + group-inherited).
-	// NOTE: not yet implemented — returns ErrInternal("not yet implemented").
+	// Returns direct + group-inherited roles; see UserRole.source.
 	ListUserRoles(context.Context, *ListUserRolesRequest) (*ListUserRolesResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
@@ -1180,10 +1327,37 @@ func (UnimplementedUserServiceServer) DeleteRole(context.Context, *DeleteRoleReq
 func (UnimplementedUserServiceServer) ListRoles(context.Context, *ListRolesRequest) (*ListRolesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRoles not implemented")
 }
-func (UnimplementedUserServiceServer) ListPermissions(context.Context, *emptypb.Empty) (*ListPermissionsResponse, error) {
+func (UnimplementedUserServiceServer) GetRole(context.Context, *GetRoleRequest) (*Role, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRole not implemented")
+}
+func (UnimplementedUserServiceServer) ListPermissions(context.Context, *ListPermissionsRequest) (*ListPermissionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPermissions not implemented")
 }
-func (UnimplementedUserServiceServer) ListPermissionGroups(context.Context, *emptypb.Empty) (*ListPermissionGroupsResponse, error) {
+func (UnimplementedUserServiceServer) CreatePermission(context.Context, *CreatePermissionRequest) (*Permission, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreatePermission not implemented")
+}
+func (UnimplementedUserServiceServer) GetPermission(context.Context, *GetPermissionRequest) (*Permission, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPermission not implemented")
+}
+func (UnimplementedUserServiceServer) UpdatePermission(context.Context, *UpdatePermissionRequest) (*Permission, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdatePermission not implemented")
+}
+func (UnimplementedUserServiceServer) DeletePermission(context.Context, *DeletePermissionRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeletePermission not implemented")
+}
+func (UnimplementedUserServiceServer) CreatePermissionGroup(context.Context, *CreatePermissionGroupRequest) (*PermissionGroup, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreatePermissionGroup not implemented")
+}
+func (UnimplementedUserServiceServer) GetPermissionGroup(context.Context, *GetPermissionGroupRequest) (*PermissionGroup, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPermissionGroup not implemented")
+}
+func (UnimplementedUserServiceServer) UpdatePermissionGroup(context.Context, *UpdatePermissionGroupRequest) (*PermissionGroup, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdatePermissionGroup not implemented")
+}
+func (UnimplementedUserServiceServer) DeletePermissionGroup(context.Context, *DeletePermissionGroupRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeletePermissionGroup not implemented")
+}
+func (UnimplementedUserServiceServer) ListPermissionGroups(context.Context, *ListPermissionGroupsRequest) (*ListPermissionGroupsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPermissionGroups not implemented")
 }
 func (UnimplementedUserServiceServer) AddGroupRole(context.Context, *AddGroupRoleRequest) (*emptypb.Empty, error) {
@@ -1981,8 +2155,26 @@ func _UserService_ListRoles_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetRole(ctx, req.(*GetRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_ListPermissions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(ListPermissionsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1994,13 +2186,157 @@ func _UserService_ListPermissions_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: UserService_ListPermissions_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).ListPermissions(ctx, req.(*emptypb.Empty))
+		return srv.(UserServiceServer).ListPermissions(ctx, req.(*ListPermissionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_CreatePermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).CreatePermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_CreatePermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).CreatePermission(ctx, req.(*CreatePermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetPermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetPermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetPermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetPermission(ctx, req.(*GetPermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_UpdatePermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).UpdatePermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_UpdatePermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).UpdatePermission(ctx, req.(*UpdatePermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_DeletePermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeletePermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).DeletePermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_DeletePermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).DeletePermission(ctx, req.(*DeletePermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_CreatePermissionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePermissionGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).CreatePermissionGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_CreatePermissionGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).CreatePermissionGroup(ctx, req.(*CreatePermissionGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetPermissionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPermissionGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetPermissionGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetPermissionGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetPermissionGroup(ctx, req.(*GetPermissionGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_UpdatePermissionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePermissionGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).UpdatePermissionGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_UpdatePermissionGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).UpdatePermissionGroup(ctx, req.(*UpdatePermissionGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_DeletePermissionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeletePermissionGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).DeletePermissionGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_DeletePermissionGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).DeletePermissionGroup(ctx, req.(*DeletePermissionGroupRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _UserService_ListPermissionGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(ListPermissionGroupsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -2012,7 +2348,7 @@ func _UserService_ListPermissionGroups_Handler(srv interface{}, ctx context.Cont
 		FullMethod: UserService_ListPermissionGroups_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).ListPermissionGroups(ctx, req.(*emptypb.Empty))
+		return srv.(UserServiceServer).ListPermissionGroups(ctx, req.(*ListPermissionGroupsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2301,8 +2637,44 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _UserService_ListRoles_Handler,
 		},
 		{
+			MethodName: "GetRole",
+			Handler:    _UserService_GetRole_Handler,
+		},
+		{
 			MethodName: "ListPermissions",
 			Handler:    _UserService_ListPermissions_Handler,
+		},
+		{
+			MethodName: "CreatePermission",
+			Handler:    _UserService_CreatePermission_Handler,
+		},
+		{
+			MethodName: "GetPermission",
+			Handler:    _UserService_GetPermission_Handler,
+		},
+		{
+			MethodName: "UpdatePermission",
+			Handler:    _UserService_UpdatePermission_Handler,
+		},
+		{
+			MethodName: "DeletePermission",
+			Handler:    _UserService_DeletePermission_Handler,
+		},
+		{
+			MethodName: "CreatePermissionGroup",
+			Handler:    _UserService_CreatePermissionGroup_Handler,
+		},
+		{
+			MethodName: "GetPermissionGroup",
+			Handler:    _UserService_GetPermissionGroup_Handler,
+		},
+		{
+			MethodName: "UpdatePermissionGroup",
+			Handler:    _UserService_UpdatePermissionGroup_Handler,
+		},
+		{
+			MethodName: "DeletePermissionGroup",
+			Handler:    _UserService_DeletePermissionGroup_Handler,
 		},
 		{
 			MethodName: "ListPermissionGroups",

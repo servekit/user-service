@@ -5540,6 +5540,7 @@ type Permission struct {
 	Resource      string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
 	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	IsBuiltin     bool                   `protobuf:"varint,5,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5602,16 +5603,77 @@ func (x *Permission) GetDescription() string {
 	return ""
 }
 
+func (x *Permission) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+type ListPermissionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPermissionsRequest) Reset() {
+	*x = ListPermissionsRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPermissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPermissionsRequest) ProtoMessage() {}
+
+func (x *ListPermissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPermissionsRequest.ProtoReflect.Descriptor instead.
+func (*ListPermissionsRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *ListPermissionsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListPermissionsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 type ListPermissionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Permissions   []*Permission          `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Total         int32                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListPermissionsResponse) Reset() {
 	*x = ListPermissionsResponse{}
-	mi := &file_user_v1_user_proto_msgTypes[67]
+	mi := &file_user_v1_user_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5623,7 +5685,7 @@ func (x *ListPermissionsResponse) String() string {
 func (*ListPermissionsResponse) ProtoMessage() {}
 
 func (x *ListPermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[67]
+	mi := &file_user_v1_user_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5636,7 +5698,7 @@ func (x *ListPermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionsResponse.ProtoReflect.Descriptor instead.
 func (*ListPermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{67}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *ListPermissionsResponse) GetPermissions() []*Permission {
@@ -5646,19 +5708,250 @@ func (x *ListPermissionsResponse) GetPermissions() []*Permission {
 	return nil
 }
 
+func (x *ListPermissionsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListPermissionsResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type CreatePermissionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePermissionRequest) Reset() {
+	*x = CreatePermissionRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePermissionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePermissionRequest) ProtoMessage() {}
+
+func (x *CreatePermissionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePermissionRequest.ProtoReflect.Descriptor instead.
+func (*CreatePermissionRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *CreatePermissionRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *CreatePermissionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *CreatePermissionRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type GetPermissionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PermissionId  int64                  `protobuf:"varint,1,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPermissionRequest) Reset() {
+	*x = GetPermissionRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPermissionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPermissionRequest) ProtoMessage() {}
+
+func (x *GetPermissionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPermissionRequest.ProtoReflect.Descriptor instead.
+func (*GetPermissionRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *GetPermissionRequest) GetPermissionId() int64 {
+	if x != nil {
+		return x.PermissionId
+	}
+	return 0
+}
+
+type UpdatePermissionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PermissionId  int64                  `protobuf:"varint,1,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	Resource      string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePermissionRequest) Reset() {
+	*x = UpdatePermissionRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePermissionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePermissionRequest) ProtoMessage() {}
+
+func (x *UpdatePermissionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePermissionRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePermissionRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *UpdatePermissionRequest) GetPermissionId() int64 {
+	if x != nil {
+		return x.PermissionId
+	}
+	return 0
+}
+
+func (x *UpdatePermissionRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *UpdatePermissionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *UpdatePermissionRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type DeletePermissionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PermissionId  int64                  `protobuf:"varint,1,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePermissionRequest) Reset() {
+	*x = DeletePermissionRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePermissionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePermissionRequest) ProtoMessage() {}
+
+func (x *DeletePermissionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePermissionRequest.ProtoReflect.Descriptor instead.
+func (*DeletePermissionRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *DeletePermissionRequest) GetPermissionId() int64 {
+	if x != nil {
+		return x.PermissionId
+	}
+	return 0
+}
+
 type PermissionGroup struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Permissions   []*Permission          `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	IsBuiltin     bool                   `protobuf:"varint,5,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PermissionGroup) Reset() {
 	*x = PermissionGroup{}
-	mi := &file_user_v1_user_proto_msgTypes[68]
+	mi := &file_user_v1_user_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5670,7 +5963,7 @@ func (x *PermissionGroup) String() string {
 func (*PermissionGroup) ProtoMessage() {}
 
 func (x *PermissionGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[68]
+	mi := &file_user_v1_user_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5683,7 +5976,7 @@ func (x *PermissionGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionGroup.ProtoReflect.Descriptor instead.
 func (*PermissionGroup) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{68}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *PermissionGroup) GetId() int64 {
@@ -5714,16 +6007,77 @@ func (x *PermissionGroup) GetPermissions() []*Permission {
 	return nil
 }
 
+func (x *PermissionGroup) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+type ListPermissionGroupsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPermissionGroupsRequest) Reset() {
+	*x = ListPermissionGroupsRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPermissionGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPermissionGroupsRequest) ProtoMessage() {}
+
+func (x *ListPermissionGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPermissionGroupsRequest.ProtoReflect.Descriptor instead.
+func (*ListPermissionGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *ListPermissionGroupsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListPermissionGroupsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 type ListPermissionGroupsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Groups        []*PermissionGroup     `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Total         int32                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListPermissionGroupsResponse) Reset() {
 	*x = ListPermissionGroupsResponse{}
-	mi := &file_user_v1_user_proto_msgTypes[69]
+	mi := &file_user_v1_user_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5735,7 +6089,7 @@ func (x *ListPermissionGroupsResponse) String() string {
 func (*ListPermissionGroupsResponse) ProtoMessage() {}
 
 func (x *ListPermissionGroupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[69]
+	mi := &file_user_v1_user_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5748,7 +6102,7 @@ func (x *ListPermissionGroupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPermissionGroupsResponse.ProtoReflect.Descriptor instead.
 func (*ListPermissionGroupsResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{69}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ListPermissionGroupsResponse) GetGroups() []*PermissionGroup {
@@ -5756,6 +6110,280 @@ func (x *ListPermissionGroupsResponse) GetGroups() []*PermissionGroup {
 		return x.Groups
 	}
 	return nil
+}
+
+func (x *ListPermissionGroupsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListPermissionGroupsResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type CreatePermissionGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	PermissionIds []int64                `protobuf:"varint,3,rep,packed,name=permission_ids,json=permissionIds,proto3" json:"permission_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePermissionGroupRequest) Reset() {
+	*x = CreatePermissionGroupRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePermissionGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePermissionGroupRequest) ProtoMessage() {}
+
+func (x *CreatePermissionGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePermissionGroupRequest.ProtoReflect.Descriptor instead.
+func (*CreatePermissionGroupRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *CreatePermissionGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreatePermissionGroupRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreatePermissionGroupRequest) GetPermissionIds() []int64 {
+	if x != nil {
+		return x.PermissionIds
+	}
+	return nil
+}
+
+type GetPermissionGroupRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PermissionGroupId int64                  `protobuf:"varint,1,opt,name=permission_group_id,json=permissionGroupId,proto3" json:"permission_group_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetPermissionGroupRequest) Reset() {
+	*x = GetPermissionGroupRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPermissionGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPermissionGroupRequest) ProtoMessage() {}
+
+func (x *GetPermissionGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPermissionGroupRequest.ProtoReflect.Descriptor instead.
+func (*GetPermissionGroupRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *GetPermissionGroupRequest) GetPermissionGroupId() int64 {
+	if x != nil {
+		return x.PermissionGroupId
+	}
+	return 0
+}
+
+type UpdatePermissionGroupRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PermissionGroupId int64                  `protobuf:"varint,1,opt,name=permission_group_id,json=permissionGroupId,proto3" json:"permission_group_id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	PermissionIds     []int64                `protobuf:"varint,4,rep,packed,name=permission_ids,json=permissionIds,proto3" json:"permission_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdatePermissionGroupRequest) Reset() {
+	*x = UpdatePermissionGroupRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePermissionGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePermissionGroupRequest) ProtoMessage() {}
+
+func (x *UpdatePermissionGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePermissionGroupRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePermissionGroupRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *UpdatePermissionGroupRequest) GetPermissionGroupId() int64 {
+	if x != nil {
+		return x.PermissionGroupId
+	}
+	return 0
+}
+
+func (x *UpdatePermissionGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdatePermissionGroupRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpdatePermissionGroupRequest) GetPermissionIds() []int64 {
+	if x != nil {
+		return x.PermissionIds
+	}
+	return nil
+}
+
+type DeletePermissionGroupRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PermissionGroupId int64                  `protobuf:"varint,1,opt,name=permission_group_id,json=permissionGroupId,proto3" json:"permission_group_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DeletePermissionGroupRequest) Reset() {
+	*x = DeletePermissionGroupRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePermissionGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePermissionGroupRequest) ProtoMessage() {}
+
+func (x *DeletePermissionGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePermissionGroupRequest.ProtoReflect.Descriptor instead.
+func (*DeletePermissionGroupRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *DeletePermissionGroupRequest) GetPermissionGroupId() int64 {
+	if x != nil {
+		return x.PermissionGroupId
+	}
+	return 0
+}
+
+type GetRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoleId        int64                  `protobuf:"varint,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoleRequest) Reset() {
+	*x = GetRoleRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoleRequest) ProtoMessage() {}
+
+func (x *GetRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoleRequest.ProtoReflect.Descriptor instead.
+func (*GetRoleRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *GetRoleRequest) GetRoleId() int64 {
+	if x != nil {
+		return x.RoleId
+	}
+	return 0
 }
 
 type AddGroupRoleRequest struct {
@@ -5768,7 +6396,7 @@ type AddGroupRoleRequest struct {
 
 func (x *AddGroupRoleRequest) Reset() {
 	*x = AddGroupRoleRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[70]
+	mi := &file_user_v1_user_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5780,7 +6408,7 @@ func (x *AddGroupRoleRequest) String() string {
 func (*AddGroupRoleRequest) ProtoMessage() {}
 
 func (x *AddGroupRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[70]
+	mi := &file_user_v1_user_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5793,7 +6421,7 @@ func (x *AddGroupRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddGroupRoleRequest.ProtoReflect.Descriptor instead.
 func (*AddGroupRoleRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{70}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *AddGroupRoleRequest) GetGroupId() int64 {
@@ -5820,7 +6448,7 @@ type RemoveGroupRoleRequest struct {
 
 func (x *RemoveGroupRoleRequest) Reset() {
 	*x = RemoveGroupRoleRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[71]
+	mi := &file_user_v1_user_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5832,7 +6460,7 @@ func (x *RemoveGroupRoleRequest) String() string {
 func (*RemoveGroupRoleRequest) ProtoMessage() {}
 
 func (x *RemoveGroupRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[71]
+	mi := &file_user_v1_user_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5845,7 +6473,7 @@ func (x *RemoveGroupRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveGroupRoleRequest.ProtoReflect.Descriptor instead.
 func (*RemoveGroupRoleRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{71}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *RemoveGroupRoleRequest) GetGroupId() int64 {
@@ -5871,7 +6499,7 @@ type ListGroupRolesRequest struct {
 
 func (x *ListGroupRolesRequest) Reset() {
 	*x = ListGroupRolesRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[72]
+	mi := &file_user_v1_user_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5883,7 +6511,7 @@ func (x *ListGroupRolesRequest) String() string {
 func (*ListGroupRolesRequest) ProtoMessage() {}
 
 func (x *ListGroupRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[72]
+	mi := &file_user_v1_user_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5896,7 +6524,7 @@ func (x *ListGroupRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGroupRolesRequest.ProtoReflect.Descriptor instead.
 func (*ListGroupRolesRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{72}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *ListGroupRolesRequest) GetGroupId() int64 {
@@ -5915,7 +6543,7 @@ type ListGroupRolesResponse struct {
 
 func (x *ListGroupRolesResponse) Reset() {
 	*x = ListGroupRolesResponse{}
-	mi := &file_user_v1_user_proto_msgTypes[73]
+	mi := &file_user_v1_user_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5927,7 +6555,7 @@ func (x *ListGroupRolesResponse) String() string {
 func (*ListGroupRolesResponse) ProtoMessage() {}
 
 func (x *ListGroupRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[73]
+	mi := &file_user_v1_user_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5940,7 +6568,7 @@ func (x *ListGroupRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGroupRolesResponse.ProtoReflect.Descriptor instead.
 func (*ListGroupRolesResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{73}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *ListGroupRolesResponse) GetRoles() []*Role {
@@ -5960,7 +6588,7 @@ type AssignRoleRequest struct {
 
 func (x *AssignRoleRequest) Reset() {
 	*x = AssignRoleRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[74]
+	mi := &file_user_v1_user_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5972,7 +6600,7 @@ func (x *AssignRoleRequest) String() string {
 func (*AssignRoleRequest) ProtoMessage() {}
 
 func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[74]
+	mi := &file_user_v1_user_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5985,7 +6613,7 @@ func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignRoleRequest.ProtoReflect.Descriptor instead.
 func (*AssignRoleRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{74}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *AssignRoleRequest) GetUserId() int64 {
@@ -6012,7 +6640,7 @@ type RevokeRoleRequest struct {
 
 func (x *RevokeRoleRequest) Reset() {
 	*x = RevokeRoleRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[75]
+	mi := &file_user_v1_user_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6024,7 +6652,7 @@ func (x *RevokeRoleRequest) String() string {
 func (*RevokeRoleRequest) ProtoMessage() {}
 
 func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[75]
+	mi := &file_user_v1_user_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6037,7 +6665,7 @@ func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRoleRequest.ProtoReflect.Descriptor instead.
 func (*RevokeRoleRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{75}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *RevokeRoleRequest) GetUserId() int64 {
@@ -6063,7 +6691,7 @@ type ListUserRolesRequest struct {
 
 func (x *ListUserRolesRequest) Reset() {
 	*x = ListUserRolesRequest{}
-	mi := &file_user_v1_user_proto_msgTypes[76]
+	mi := &file_user_v1_user_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6075,7 +6703,7 @@ func (x *ListUserRolesRequest) String() string {
 func (*ListUserRolesRequest) ProtoMessage() {}
 
 func (x *ListUserRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[76]
+	mi := &file_user_v1_user_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6088,7 +6716,7 @@ func (x *ListUserRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserRolesRequest.ProtoReflect.Descriptor instead.
 func (*ListUserRolesRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{76}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ListUserRolesRequest) GetUserId() int64 {
@@ -6111,7 +6739,7 @@ type UserRole struct {
 
 func (x *UserRole) Reset() {
 	*x = UserRole{}
-	mi := &file_user_v1_user_proto_msgTypes[77]
+	mi := &file_user_v1_user_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6123,7 +6751,7 @@ func (x *UserRole) String() string {
 func (*UserRole) ProtoMessage() {}
 
 func (x *UserRole) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[77]
+	mi := &file_user_v1_user_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6136,7 +6764,7 @@ func (x *UserRole) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRole.ProtoReflect.Descriptor instead.
 func (*UserRole) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{77}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *UserRole) GetId() int64 {
@@ -6183,7 +6811,7 @@ type ListUserRolesResponse struct {
 
 func (x *ListUserRolesResponse) Reset() {
 	*x = ListUserRolesResponse{}
-	mi := &file_user_v1_user_proto_msgTypes[78]
+	mi := &file_user_v1_user_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6195,7 +6823,7 @@ func (x *ListUserRolesResponse) String() string {
 func (*ListUserRolesResponse) ProtoMessage() {}
 
 func (x *ListUserRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_proto_msgTypes[78]
+	mi := &file_user_v1_user_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6208,7 +6836,7 @@ func (x *ListUserRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserRolesResponse.ProtoReflect.Descriptor instead.
 func (*ListUserRolesResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_proto_rawDescGZIP(), []int{78}
+	return file_user_v1_user_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ListUserRolesResponse) GetRoles() []*UserRole {
@@ -6704,22 +7332,66 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\x05roles\x18\x01 \x03(\v2\r.user.v1.RoleR\x05roles\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12\x14\n" +
-	"\x05total\x18\x03 \x01(\x05R\x05total\"r\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\x91\x01\n" +
 	"\n" +
 	"Permission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x16\n" +
 	"\x06action\x18\x03 \x01(\tR\x06action\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"P\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\x05 \x01(\bR\tisBuiltin\"a\n" +
+	"\x16ListPermissionsRequest\x12&\n" +
+	"\tpage_size\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01R\bpageSize\x12\x1f\n" +
+	"\x06cursor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\"\x87\x01\n" +
 	"\x17ListPermissionsResponse\x125\n" +
-	"\vpermissions\x18\x01 \x03(\v2\x13.user.v1.PermissionR\vpermissions\"\x8e\x01\n" +
+	"\vpermissions\x18\x01 \x03(\v2\x13.user.v1.PermissionR\vpermissions\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\x8f\x01\n" +
+	"\x17CreatePermissionRequest\x12%\n" +
+	"\bresource\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bresource\x12!\n" +
+	"\x06action\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06action\x12*\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\"D\n" +
+	"\x14GetPermissionRequest\x12,\n" +
+	"\rpermission_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\fpermissionId\"\xb9\x01\n" +
+	"\x17UpdatePermissionRequest\x12,\n" +
+	"\rpermission_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\fpermissionId\x12#\n" +
+	"\bresource\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\bresource\x12\x1f\n" +
+	"\x06action\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x06action\x12*\n" +
+	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\"G\n" +
+	"\x17DeletePermissionRequest\x12,\n" +
+	"\rpermission_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\fpermissionId\"\xad\x01\n" +
 	"\x0fPermissionGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x125\n" +
-	"\vpermissions\x18\x04 \x03(\v2\x13.user.v1.PermissionR\vpermissions\"P\n" +
+	"\vpermissions\x18\x04 \x03(\v2\x13.user.v1.PermissionR\vpermissions\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\x05 \x01(\bR\tisBuiltin\"f\n" +
+	"\x1bListPermissionGroupsRequest\x12&\n" +
+	"\tpage_size\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01R\bpageSize\x12\x1f\n" +
+	"\x06cursor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\"\x87\x01\n" +
 	"\x1cListPermissionGroupsResponse\x120\n" +
-	"\x06groups\x18\x01 \x03(\v2\x18.user.v1.PermissionGroupR\x06groups\"[\n" +
+	"\x06groups\x18\x01 \x03(\v2\x18.user.v1.PermissionGroupR\x06groups\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\x90\x01\n" +
+	"\x1cCreatePermissionGroupRequest\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12*\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\vdescription\x12%\n" +
+	"\x0epermission_ids\x18\x03 \x03(\x03R\rpermissionIds\"T\n" +
+	"\x19GetPermissionGroupRequest\x127\n" +
+	"\x13permission_group_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11permissionGroupId\"\xc7\x01\n" +
+	"\x1cUpdatePermissionGroupRequest\x127\n" +
+	"\x13permission_group_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11permissionGroupId\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\vdescription\x12%\n" +
+	"\x0epermission_ids\x18\x04 \x03(\x03R\rpermissionIds\"W\n" +
+	"\x1cDeletePermissionGroupRequest\x127\n" +
+	"\x13permission_group_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11permissionGroupId\"2\n" +
+	"\x0eGetRoleRequest\x12 \n" +
+	"\arole_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06roleId\"[\n" +
 	"\x13AddGroupRoleRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\agroupId\x12 \n" +
 	"\arole_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06roleId\"^\n" +
@@ -6812,7 +7484,7 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\x12USER_SORT_FIELD_ID\x10\x01\x12\x1e\n" +
 	"\x1aUSER_SORT_FIELD_CREATED_AT\x10\x02\x12\x1e\n" +
 	"\x1aUSER_SORT_FIELD_UPDATED_AT\x10\x03\x12!\n" +
-	"\x1dUSER_SORT_FIELD_LAST_LOGIN_AT\x10\x042\xd9)\n" +
+	"\x1dUSER_SORT_FIELD_LAST_LOGIN_AT\x10\x042\xe22\n" +
 	"\vUserService\x12<\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\r.user.v1.Pong\"\r\x82\xd3\xe4\x93\x02\a\x12\x05/ping\x12]\n" +
 	"\bRegister\x12\x18.user.v1.RegisterRequest\x1a\x19.user.v1.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12Q\n" +
@@ -6862,9 +7534,18 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"UpdateRole\x12\x1a.user.v1.UpdateRoleRequest\x1a\r.user.v1.Role\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\x1a\x19/v1/admin/roles/{role_id}\x12c\n" +
 	"\n" +
 	"DeleteRole\x12\x1a.user.v1.DeleteRoleRequest\x1a\x16.google.protobuf.Empty\"!\x82\xd3\xe4\x93\x02\x1b*\x19/v1/admin/roles/{role_id}\x12[\n" +
-	"\tListRoles\x12\x19.user.v1.ListRolesRequest\x1a\x1a.user.v1.ListRolesResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/admin/roles\x12j\n" +
-	"\x0fListPermissions\x12\x16.google.protobuf.Empty\x1a .user.v1.ListPermissionsResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/admin/permissions\x12z\n" +
-	"\x14ListPermissionGroups\x12\x16.google.protobuf.Empty\x1a%.user.v1.ListPermissionGroupsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/admin/permission-groups\x12r\n" +
+	"\tListRoles\x12\x19.user.v1.ListRolesRequest\x1a\x1a.user.v1.ListRolesResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/admin/roles\x12T\n" +
+	"\aGetRole\x12\x17.user.v1.GetRoleRequest\x1a\r.user.v1.Role\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/admin/roles/{role_id}\x12s\n" +
+	"\x0fListPermissions\x12\x1f.user.v1.ListPermissionsRequest\x1a .user.v1.ListPermissionsResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/admin/permissions\x12k\n" +
+	"\x10CreatePermission\x12 .user.v1.CreatePermissionRequest\x1a\x13.user.v1.Permission\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/admin/permissions\x12r\n" +
+	"\rGetPermission\x12\x1d.user.v1.GetPermissionRequest\x1a\x13.user.v1.Permission\"-\x82\xd3\xe4\x93\x02'\x12%/v1/admin/permissions/{permission_id}\x12{\n" +
+	"\x10UpdatePermission\x12 .user.v1.UpdatePermissionRequest\x1a\x13.user.v1.Permission\"0\x82\xd3\xe4\x93\x02*:\x01*\x1a%/v1/admin/permissions/{permission_id}\x12{\n" +
+	"\x10DeletePermission\x12 .user.v1.DeletePermissionRequest\x1a\x16.google.protobuf.Empty\"-\x82\xd3\xe4\x93\x02'*%/v1/admin/permissions/{permission_id}\x12\x80\x01\n" +
+	"\x15CreatePermissionGroup\x12%.user.v1.CreatePermissionGroupRequest\x1a\x18.user.v1.PermissionGroup\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/admin/permission-groups\x12\x8d\x01\n" +
+	"\x12GetPermissionGroup\x12\".user.v1.GetPermissionGroupRequest\x1a\x18.user.v1.PermissionGroup\"9\x82\xd3\xe4\x93\x023\x121/v1/admin/permission-groups/{permission_group_id}\x12\x96\x01\n" +
+	"\x15UpdatePermissionGroup\x12%.user.v1.UpdatePermissionGroupRequest\x1a\x18.user.v1.PermissionGroup\"<\x82\xd3\xe4\x93\x026:\x01*\x1a1/v1/admin/permission-groups/{permission_group_id}\x12\x91\x01\n" +
+	"\x15DeletePermissionGroup\x12%.user.v1.DeletePermissionGroupRequest\x1a\x16.google.protobuf.Empty\"9\x82\xd3\xe4\x93\x023*1/v1/admin/permission-groups/{permission_group_id}\x12\x88\x01\n" +
+	"\x14ListPermissionGroups\x12$.user.v1.ListPermissionGroupsRequest\x1a%.user.v1.ListPermissionGroupsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/admin/permission-groups\x12r\n" +
 	"\fAddGroupRole\x12\x1c.user.v1.AddGroupRoleRequest\x1a\x16.google.protobuf.Empty\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/admin/groups/{group_id}/roles\x12\x7f\n" +
 	"\x0fRemoveGroupRole\x12\x1f.user.v1.RemoveGroupRoleRequest\x1a\x16.google.protobuf.Empty\"3\x82\xd3\xe4\x93\x02-*+/v1/admin/groups/{group_id}/roles/{role_id}\x12|\n" +
 	"\x0eListGroupRoles\x12\x1e.user.v1.ListGroupRolesRequest\x1a\x1f.user.v1.ListGroupRolesResponse\")\x82\xd3\xe4\x93\x02#\x12!/v1/admin/groups/{group_id}/roles\x12l\n" +
@@ -6888,7 +7569,7 @@ func file_user_v1_user_proto_rawDescGZIP() []byte {
 }
 
 var file_user_v1_user_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
+var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 90)
 var file_user_v1_user_proto_goTypes = []any{
 	(UserStatus)(0),                      // 0: user.v1.UserStatus
 	(Gender)(0),                          // 1: user.v1.Gender
@@ -6967,20 +7648,31 @@ var file_user_v1_user_proto_goTypes = []any{
 	(*ListRolesRequest)(nil),             // 74: user.v1.ListRolesRequest
 	(*ListRolesResponse)(nil),            // 75: user.v1.ListRolesResponse
 	(*Permission)(nil),                   // 76: user.v1.Permission
-	(*ListPermissionsResponse)(nil),      // 77: user.v1.ListPermissionsResponse
-	(*PermissionGroup)(nil),              // 78: user.v1.PermissionGroup
-	(*ListPermissionGroupsResponse)(nil), // 79: user.v1.ListPermissionGroupsResponse
-	(*AddGroupRoleRequest)(nil),          // 80: user.v1.AddGroupRoleRequest
-	(*RemoveGroupRoleRequest)(nil),       // 81: user.v1.RemoveGroupRoleRequest
-	(*ListGroupRolesRequest)(nil),        // 82: user.v1.ListGroupRolesRequest
-	(*ListGroupRolesResponse)(nil),       // 83: user.v1.ListGroupRolesResponse
-	(*AssignRoleRequest)(nil),            // 84: user.v1.AssignRoleRequest
-	(*RevokeRoleRequest)(nil),            // 85: user.v1.RevokeRoleRequest
-	(*ListUserRolesRequest)(nil),         // 86: user.v1.ListUserRolesRequest
-	(*UserRole)(nil),                     // 87: user.v1.UserRole
-	(*ListUserRolesResponse)(nil),        // 88: user.v1.ListUserRolesResponse
-	(*timestamppb.Timestamp)(nil),        // 89: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                // 90: google.protobuf.Empty
+	(*ListPermissionsRequest)(nil),       // 77: user.v1.ListPermissionsRequest
+	(*ListPermissionsResponse)(nil),      // 78: user.v1.ListPermissionsResponse
+	(*CreatePermissionRequest)(nil),      // 79: user.v1.CreatePermissionRequest
+	(*GetPermissionRequest)(nil),         // 80: user.v1.GetPermissionRequest
+	(*UpdatePermissionRequest)(nil),      // 81: user.v1.UpdatePermissionRequest
+	(*DeletePermissionRequest)(nil),      // 82: user.v1.DeletePermissionRequest
+	(*PermissionGroup)(nil),              // 83: user.v1.PermissionGroup
+	(*ListPermissionGroupsRequest)(nil),  // 84: user.v1.ListPermissionGroupsRequest
+	(*ListPermissionGroupsResponse)(nil), // 85: user.v1.ListPermissionGroupsResponse
+	(*CreatePermissionGroupRequest)(nil), // 86: user.v1.CreatePermissionGroupRequest
+	(*GetPermissionGroupRequest)(nil),    // 87: user.v1.GetPermissionGroupRequest
+	(*UpdatePermissionGroupRequest)(nil), // 88: user.v1.UpdatePermissionGroupRequest
+	(*DeletePermissionGroupRequest)(nil), // 89: user.v1.DeletePermissionGroupRequest
+	(*GetRoleRequest)(nil),               // 90: user.v1.GetRoleRequest
+	(*AddGroupRoleRequest)(nil),          // 91: user.v1.AddGroupRoleRequest
+	(*RemoveGroupRoleRequest)(nil),       // 92: user.v1.RemoveGroupRoleRequest
+	(*ListGroupRolesRequest)(nil),        // 93: user.v1.ListGroupRolesRequest
+	(*ListGroupRolesResponse)(nil),       // 94: user.v1.ListGroupRolesResponse
+	(*AssignRoleRequest)(nil),            // 95: user.v1.AssignRoleRequest
+	(*RevokeRoleRequest)(nil),            // 96: user.v1.RevokeRoleRequest
+	(*ListUserRolesRequest)(nil),         // 97: user.v1.ListUserRolesRequest
+	(*UserRole)(nil),                     // 98: user.v1.UserRole
+	(*ListUserRolesResponse)(nil),        // 99: user.v1.ListUserRolesResponse
+	(*timestamppb.Timestamp)(nil),        // 100: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                // 101: google.protobuf.Empty
 }
 var file_user_v1_user_proto_depIdxs = []int32{
 	2,   // 0: user.v1.RegisterRequest.provider:type_name -> user.v1.IdentityProvider
@@ -6994,12 +7686,12 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	0,   // 8: user.v1.User.status:type_name -> user.v1.UserStatus
 	2,   // 9: user.v1.User.register_source:type_name -> user.v1.IdentityProvider
 	8,   // 10: user.v1.User.user_type:type_name -> user.v1.UserType
-	89,  // 11: user.v1.User.last_login_at:type_name -> google.protobuf.Timestamp
-	89,  // 12: user.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	89,  // 13: user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	100, // 11: user.v1.User.last_login_at:type_name -> google.protobuf.Timestamp
+	100, // 12: user.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	100, // 13: user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 14: user.v1.UpdateProfileRequest.gender:type_name -> user.v1.Gender
 	2,   // 15: user.v1.Identity.provider:type_name -> user.v1.IdentityProvider
-	89,  // 16: user.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
+	100, // 16: user.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
 	27,  // 17: user.v1.ListIdentitiesResponse.identities:type_name -> user.v1.Identity
 	2,   // 18: user.v1.BindIdentityRequest.provider:type_name -> user.v1.IdentityProvider
 	2,   // 19: user.v1.BindOAuthIdentityRequest.provider:type_name -> user.v1.IdentityProvider
@@ -7007,11 +7699,11 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	4,   // 21: user.v1.SendVerificationCodeRequest.channel:type_name -> user.v1.VerificationChannel
 	5,   // 22: user.v1.SendVerificationCodeRequest.purpose:type_name -> user.v1.VerificationPurpose
 	6,   // 23: user.v1.Session.device_type:type_name -> user.v1.DeviceType
-	89,  // 24: user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	89,  // 25: user.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
+	100, // 24: user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	100, // 25: user.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
 	36,  // 26: user.v1.ListSessionsResponse.sessions:type_name -> user.v1.Session
-	89,  // 27: user.v1.GetSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
-	89,  // 28: user.v1.GetSessionResponse.created_at:type_name -> google.protobuf.Timestamp
+	100, // 27: user.v1.GetSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
+	100, // 28: user.v1.GetSessionResponse.created_at:type_name -> google.protobuf.Timestamp
 	8,   // 29: user.v1.CreateUserRequest.user_type:type_name -> user.v1.UserType
 	1,   // 30: user.v1.CreateUserRequest.gender:type_name -> user.v1.Gender
 	22,  // 31: user.v1.CreateUserResponse.user:type_name -> user.v1.User
@@ -7019,10 +7711,10 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	1,   // 33: user.v1.ListUsersRequest.gender:type_name -> user.v1.Gender
 	2,   // 34: user.v1.ListUsersRequest.register_source:type_name -> user.v1.IdentityProvider
 	6,   // 35: user.v1.ListUsersRequest.register_device:type_name -> user.v1.DeviceType
-	89,  // 36: user.v1.ListUsersRequest.created_at_start:type_name -> google.protobuf.Timestamp
-	89,  // 37: user.v1.ListUsersRequest.created_at_end:type_name -> google.protobuf.Timestamp
-	89,  // 38: user.v1.ListUsersRequest.last_login_at_start:type_name -> google.protobuf.Timestamp
-	89,  // 39: user.v1.ListUsersRequest.last_login_at_end:type_name -> google.protobuf.Timestamp
+	100, // 36: user.v1.ListUsersRequest.created_at_start:type_name -> google.protobuf.Timestamp
+	100, // 37: user.v1.ListUsersRequest.created_at_end:type_name -> google.protobuf.Timestamp
+	100, // 38: user.v1.ListUsersRequest.last_login_at_start:type_name -> google.protobuf.Timestamp
+	100, // 39: user.v1.ListUsersRequest.last_login_at_end:type_name -> google.protobuf.Timestamp
 	8,   // 40: user.v1.ListUsersRequest.user_type:type_name -> user.v1.UserType
 	9,   // 41: user.v1.ListUsersRequest.order_by:type_name -> user.v1.UserSortField
 	22,  // 42: user.v1.ListUsersResponse.users:type_name -> user.v1.User
@@ -7031,10 +7723,10 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	2,   // 45: user.v1.ListUsersPagedRequest.register_source:type_name -> user.v1.IdentityProvider
 	6,   // 46: user.v1.ListUsersPagedRequest.register_device:type_name -> user.v1.DeviceType
 	8,   // 47: user.v1.ListUsersPagedRequest.user_type:type_name -> user.v1.UserType
-	89,  // 48: user.v1.ListUsersPagedRequest.created_at_start:type_name -> google.protobuf.Timestamp
-	89,  // 49: user.v1.ListUsersPagedRequest.created_at_end:type_name -> google.protobuf.Timestamp
-	89,  // 50: user.v1.ListUsersPagedRequest.last_login_at_start:type_name -> google.protobuf.Timestamp
-	89,  // 51: user.v1.ListUsersPagedRequest.last_login_at_end:type_name -> google.protobuf.Timestamp
+	100, // 48: user.v1.ListUsersPagedRequest.created_at_start:type_name -> google.protobuf.Timestamp
+	100, // 49: user.v1.ListUsersPagedRequest.created_at_end:type_name -> google.protobuf.Timestamp
+	100, // 50: user.v1.ListUsersPagedRequest.last_login_at_start:type_name -> google.protobuf.Timestamp
+	100, // 51: user.v1.ListUsersPagedRequest.last_login_at_end:type_name -> google.protobuf.Timestamp
 	9,   // 52: user.v1.ListUsersPagedRequest.order_by:type_name -> user.v1.UserSortField
 	22,  // 53: user.v1.ListUsersPagedResponse.users:type_name -> user.v1.User
 	2,   // 54: user.v1.GetLoginLogsRequest.provider:type_name -> user.v1.IdentityProvider
@@ -7042,24 +7734,24 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	2,   // 56: user.v1.LoginLog.provider:type_name -> user.v1.IdentityProvider
 	7,   // 57: user.v1.LoginLog.action:type_name -> user.v1.LoginAction
 	6,   // 58: user.v1.LoginLog.device_type:type_name -> user.v1.DeviceType
-	89,  // 59: user.v1.LoginLog.created_at:type_name -> google.protobuf.Timestamp
-	89,  // 60: user.v1.Group.created_at:type_name -> google.protobuf.Timestamp
-	89,  // 61: user.v1.Group.updated_at:type_name -> google.protobuf.Timestamp
+	100, // 59: user.v1.LoginLog.created_at:type_name -> google.protobuf.Timestamp
+	100, // 60: user.v1.Group.created_at:type_name -> google.protobuf.Timestamp
+	100, // 61: user.v1.Group.updated_at:type_name -> google.protobuf.Timestamp
 	58,  // 62: user.v1.ListGroupsResponse.groups:type_name -> user.v1.Group
 	69,  // 63: user.v1.ListGroupMembersResponse.members:type_name -> user.v1.GroupMember
-	89,  // 64: user.v1.GroupMember.created_at:type_name -> google.protobuf.Timestamp
+	100, // 64: user.v1.GroupMember.created_at:type_name -> google.protobuf.Timestamp
 	76,  // 65: user.v1.Role.permissions:type_name -> user.v1.Permission
-	78,  // 66: user.v1.Role.perm_groups:type_name -> user.v1.PermissionGroup
-	89,  // 67: user.v1.Role.created_at:type_name -> google.protobuf.Timestamp
-	89,  // 68: user.v1.Role.updated_at:type_name -> google.protobuf.Timestamp
+	83,  // 66: user.v1.Role.perm_groups:type_name -> user.v1.PermissionGroup
+	100, // 67: user.v1.Role.created_at:type_name -> google.protobuf.Timestamp
+	100, // 68: user.v1.Role.updated_at:type_name -> google.protobuf.Timestamp
 	70,  // 69: user.v1.ListRolesResponse.roles:type_name -> user.v1.Role
 	76,  // 70: user.v1.ListPermissionsResponse.permissions:type_name -> user.v1.Permission
 	76,  // 71: user.v1.PermissionGroup.permissions:type_name -> user.v1.Permission
-	78,  // 72: user.v1.ListPermissionGroupsResponse.groups:type_name -> user.v1.PermissionGroup
+	83,  // 72: user.v1.ListPermissionGroupsResponse.groups:type_name -> user.v1.PermissionGroup
 	70,  // 73: user.v1.ListGroupRolesResponse.roles:type_name -> user.v1.Role
-	89,  // 74: user.v1.UserRole.created_at:type_name -> google.protobuf.Timestamp
-	87,  // 75: user.v1.ListUserRolesResponse.roles:type_name -> user.v1.UserRole
-	90,  // 76: user.v1.UserService.Ping:input_type -> google.protobuf.Empty
+	100, // 74: user.v1.UserRole.created_at:type_name -> google.protobuf.Timestamp
+	98,  // 75: user.v1.ListUserRolesResponse.roles:type_name -> user.v1.UserRole
+	101, // 76: user.v1.UserService.Ping:input_type -> google.protobuf.Empty
 	11,  // 77: user.v1.UserService.Register:input_type -> user.v1.RegisterRequest
 	13,  // 78: user.v1.UserService.Login:input_type -> user.v1.LoginRequest
 	15,  // 79: user.v1.UserService.Logout:input_type -> user.v1.LogoutRequest
@@ -7101,66 +7793,84 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	72,  // 115: user.v1.UserService.UpdateRole:input_type -> user.v1.UpdateRoleRequest
 	73,  // 116: user.v1.UserService.DeleteRole:input_type -> user.v1.DeleteRoleRequest
 	74,  // 117: user.v1.UserService.ListRoles:input_type -> user.v1.ListRolesRequest
-	90,  // 118: user.v1.UserService.ListPermissions:input_type -> google.protobuf.Empty
-	90,  // 119: user.v1.UserService.ListPermissionGroups:input_type -> google.protobuf.Empty
-	80,  // 120: user.v1.UserService.AddGroupRole:input_type -> user.v1.AddGroupRoleRequest
-	81,  // 121: user.v1.UserService.RemoveGroupRole:input_type -> user.v1.RemoveGroupRoleRequest
-	82,  // 122: user.v1.UserService.ListGroupRoles:input_type -> user.v1.ListGroupRolesRequest
-	84,  // 123: user.v1.UserService.AssignRole:input_type -> user.v1.AssignRoleRequest
-	85,  // 124: user.v1.UserService.RevokeRole:input_type -> user.v1.RevokeRoleRequest
-	86,  // 125: user.v1.UserService.ListUserRoles:input_type -> user.v1.ListUserRolesRequest
-	10,  // 126: user.v1.UserService.Ping:output_type -> user.v1.Pong
-	12,  // 127: user.v1.UserService.Register:output_type -> user.v1.RegisterResponse
-	14,  // 128: user.v1.UserService.Login:output_type -> user.v1.LoginResponse
-	90,  // 129: user.v1.UserService.Logout:output_type -> google.protobuf.Empty
-	90,  // 130: user.v1.UserService.RefreshSession:output_type -> google.protobuf.Empty
-	18,  // 131: user.v1.UserService.GetOAuthURL:output_type -> user.v1.GetOAuthURLResponse
-	14,  // 132: user.v1.UserService.SocialLogin:output_type -> user.v1.LoginResponse
-	14,  // 133: user.v1.UserService.MiniProgramLogin:output_type -> user.v1.LoginResponse
-	14,  // 134: user.v1.UserService.MiniProgramPhoneLogin:output_type -> user.v1.LoginResponse
-	22,  // 135: user.v1.UserService.GetProfile:output_type -> user.v1.User
-	22,  // 136: user.v1.UserService.UpdateProfile:output_type -> user.v1.User
-	90,  // 137: user.v1.UserService.ChangePassword:output_type -> google.protobuf.Empty
-	90,  // 138: user.v1.UserService.ResetPassword:output_type -> google.protobuf.Empty
-	29,  // 139: user.v1.UserService.ListIdentities:output_type -> user.v1.ListIdentitiesResponse
-	27,  // 140: user.v1.UserService.BindIdentity:output_type -> user.v1.Identity
-	32,  // 141: user.v1.UserService.BindOAuthIdentity:output_type -> user.v1.BindOAuthIdentityResponse
-	90,  // 142: user.v1.UserService.UnbindIdentity:output_type -> google.protobuf.Empty
-	35,  // 143: user.v1.UserService.SendVerificationCode:output_type -> user.v1.SendVerificationCodeResponse
-	38,  // 144: user.v1.UserService.ListSessions:output_type -> user.v1.ListSessionsResponse
-	90,  // 145: user.v1.UserService.RevokeSession:output_type -> google.protobuf.Empty
-	90,  // 146: user.v1.UserService.RevokeAllSessions:output_type -> google.protobuf.Empty
-	46,  // 147: user.v1.UserService.GetSession:output_type -> user.v1.GetSessionResponse
-	43,  // 148: user.v1.UserService.IssueSessionCode:output_type -> user.v1.IssueSessionCodeResponse
-	45,  // 149: user.v1.UserService.ExchangeSessionCode:output_type -> user.v1.ExchangeSessionCodeResponse
-	48,  // 150: user.v1.UserService.CreateUser:output_type -> user.v1.CreateUserResponse
-	22,  // 151: user.v1.UserService.GetUser:output_type -> user.v1.User
-	51,  // 152: user.v1.UserService.ListUsers:output_type -> user.v1.ListUsersResponse
-	53,  // 153: user.v1.UserService.ListUsersPaged:output_type -> user.v1.ListUsersPagedResponse
-	22,  // 154: user.v1.UserService.DisableUser:output_type -> user.v1.User
-	56,  // 155: user.v1.UserService.GetLoginLogs:output_type -> user.v1.GetLoginLogsResponse
-	58,  // 156: user.v1.UserService.CreateGroup:output_type -> user.v1.Group
-	58,  // 157: user.v1.UserService.GetGroup:output_type -> user.v1.Group
-	58,  // 158: user.v1.UserService.UpdateGroup:output_type -> user.v1.Group
-	63,  // 159: user.v1.UserService.ListGroups:output_type -> user.v1.ListGroupsResponse
-	90,  // 160: user.v1.UserService.DeleteGroup:output_type -> google.protobuf.Empty
-	90,  // 161: user.v1.UserService.AddGroupMember:output_type -> google.protobuf.Empty
-	90,  // 162: user.v1.UserService.RemoveGroupMember:output_type -> google.protobuf.Empty
-	68,  // 163: user.v1.UserService.ListGroupMembers:output_type -> user.v1.ListGroupMembersResponse
-	70,  // 164: user.v1.UserService.CreateRole:output_type -> user.v1.Role
-	70,  // 165: user.v1.UserService.UpdateRole:output_type -> user.v1.Role
-	90,  // 166: user.v1.UserService.DeleteRole:output_type -> google.protobuf.Empty
-	75,  // 167: user.v1.UserService.ListRoles:output_type -> user.v1.ListRolesResponse
-	77,  // 168: user.v1.UserService.ListPermissions:output_type -> user.v1.ListPermissionsResponse
-	79,  // 169: user.v1.UserService.ListPermissionGroups:output_type -> user.v1.ListPermissionGroupsResponse
-	90,  // 170: user.v1.UserService.AddGroupRole:output_type -> google.protobuf.Empty
-	90,  // 171: user.v1.UserService.RemoveGroupRole:output_type -> google.protobuf.Empty
-	83,  // 172: user.v1.UserService.ListGroupRoles:output_type -> user.v1.ListGroupRolesResponse
-	90,  // 173: user.v1.UserService.AssignRole:output_type -> google.protobuf.Empty
-	90,  // 174: user.v1.UserService.RevokeRole:output_type -> google.protobuf.Empty
-	88,  // 175: user.v1.UserService.ListUserRoles:output_type -> user.v1.ListUserRolesResponse
-	126, // [126:176] is the sub-list for method output_type
-	76,  // [76:126] is the sub-list for method input_type
+	90,  // 118: user.v1.UserService.GetRole:input_type -> user.v1.GetRoleRequest
+	77,  // 119: user.v1.UserService.ListPermissions:input_type -> user.v1.ListPermissionsRequest
+	79,  // 120: user.v1.UserService.CreatePermission:input_type -> user.v1.CreatePermissionRequest
+	80,  // 121: user.v1.UserService.GetPermission:input_type -> user.v1.GetPermissionRequest
+	81,  // 122: user.v1.UserService.UpdatePermission:input_type -> user.v1.UpdatePermissionRequest
+	82,  // 123: user.v1.UserService.DeletePermission:input_type -> user.v1.DeletePermissionRequest
+	86,  // 124: user.v1.UserService.CreatePermissionGroup:input_type -> user.v1.CreatePermissionGroupRequest
+	87,  // 125: user.v1.UserService.GetPermissionGroup:input_type -> user.v1.GetPermissionGroupRequest
+	88,  // 126: user.v1.UserService.UpdatePermissionGroup:input_type -> user.v1.UpdatePermissionGroupRequest
+	89,  // 127: user.v1.UserService.DeletePermissionGroup:input_type -> user.v1.DeletePermissionGroupRequest
+	84,  // 128: user.v1.UserService.ListPermissionGroups:input_type -> user.v1.ListPermissionGroupsRequest
+	91,  // 129: user.v1.UserService.AddGroupRole:input_type -> user.v1.AddGroupRoleRequest
+	92,  // 130: user.v1.UserService.RemoveGroupRole:input_type -> user.v1.RemoveGroupRoleRequest
+	93,  // 131: user.v1.UserService.ListGroupRoles:input_type -> user.v1.ListGroupRolesRequest
+	95,  // 132: user.v1.UserService.AssignRole:input_type -> user.v1.AssignRoleRequest
+	96,  // 133: user.v1.UserService.RevokeRole:input_type -> user.v1.RevokeRoleRequest
+	97,  // 134: user.v1.UserService.ListUserRoles:input_type -> user.v1.ListUserRolesRequest
+	10,  // 135: user.v1.UserService.Ping:output_type -> user.v1.Pong
+	12,  // 136: user.v1.UserService.Register:output_type -> user.v1.RegisterResponse
+	14,  // 137: user.v1.UserService.Login:output_type -> user.v1.LoginResponse
+	101, // 138: user.v1.UserService.Logout:output_type -> google.protobuf.Empty
+	101, // 139: user.v1.UserService.RefreshSession:output_type -> google.protobuf.Empty
+	18,  // 140: user.v1.UserService.GetOAuthURL:output_type -> user.v1.GetOAuthURLResponse
+	14,  // 141: user.v1.UserService.SocialLogin:output_type -> user.v1.LoginResponse
+	14,  // 142: user.v1.UserService.MiniProgramLogin:output_type -> user.v1.LoginResponse
+	14,  // 143: user.v1.UserService.MiniProgramPhoneLogin:output_type -> user.v1.LoginResponse
+	22,  // 144: user.v1.UserService.GetProfile:output_type -> user.v1.User
+	22,  // 145: user.v1.UserService.UpdateProfile:output_type -> user.v1.User
+	101, // 146: user.v1.UserService.ChangePassword:output_type -> google.protobuf.Empty
+	101, // 147: user.v1.UserService.ResetPassword:output_type -> google.protobuf.Empty
+	29,  // 148: user.v1.UserService.ListIdentities:output_type -> user.v1.ListIdentitiesResponse
+	27,  // 149: user.v1.UserService.BindIdentity:output_type -> user.v1.Identity
+	32,  // 150: user.v1.UserService.BindOAuthIdentity:output_type -> user.v1.BindOAuthIdentityResponse
+	101, // 151: user.v1.UserService.UnbindIdentity:output_type -> google.protobuf.Empty
+	35,  // 152: user.v1.UserService.SendVerificationCode:output_type -> user.v1.SendVerificationCodeResponse
+	38,  // 153: user.v1.UserService.ListSessions:output_type -> user.v1.ListSessionsResponse
+	101, // 154: user.v1.UserService.RevokeSession:output_type -> google.protobuf.Empty
+	101, // 155: user.v1.UserService.RevokeAllSessions:output_type -> google.protobuf.Empty
+	46,  // 156: user.v1.UserService.GetSession:output_type -> user.v1.GetSessionResponse
+	43,  // 157: user.v1.UserService.IssueSessionCode:output_type -> user.v1.IssueSessionCodeResponse
+	45,  // 158: user.v1.UserService.ExchangeSessionCode:output_type -> user.v1.ExchangeSessionCodeResponse
+	48,  // 159: user.v1.UserService.CreateUser:output_type -> user.v1.CreateUserResponse
+	22,  // 160: user.v1.UserService.GetUser:output_type -> user.v1.User
+	51,  // 161: user.v1.UserService.ListUsers:output_type -> user.v1.ListUsersResponse
+	53,  // 162: user.v1.UserService.ListUsersPaged:output_type -> user.v1.ListUsersPagedResponse
+	22,  // 163: user.v1.UserService.DisableUser:output_type -> user.v1.User
+	56,  // 164: user.v1.UserService.GetLoginLogs:output_type -> user.v1.GetLoginLogsResponse
+	58,  // 165: user.v1.UserService.CreateGroup:output_type -> user.v1.Group
+	58,  // 166: user.v1.UserService.GetGroup:output_type -> user.v1.Group
+	58,  // 167: user.v1.UserService.UpdateGroup:output_type -> user.v1.Group
+	63,  // 168: user.v1.UserService.ListGroups:output_type -> user.v1.ListGroupsResponse
+	101, // 169: user.v1.UserService.DeleteGroup:output_type -> google.protobuf.Empty
+	101, // 170: user.v1.UserService.AddGroupMember:output_type -> google.protobuf.Empty
+	101, // 171: user.v1.UserService.RemoveGroupMember:output_type -> google.protobuf.Empty
+	68,  // 172: user.v1.UserService.ListGroupMembers:output_type -> user.v1.ListGroupMembersResponse
+	70,  // 173: user.v1.UserService.CreateRole:output_type -> user.v1.Role
+	70,  // 174: user.v1.UserService.UpdateRole:output_type -> user.v1.Role
+	101, // 175: user.v1.UserService.DeleteRole:output_type -> google.protobuf.Empty
+	75,  // 176: user.v1.UserService.ListRoles:output_type -> user.v1.ListRolesResponse
+	70,  // 177: user.v1.UserService.GetRole:output_type -> user.v1.Role
+	78,  // 178: user.v1.UserService.ListPermissions:output_type -> user.v1.ListPermissionsResponse
+	76,  // 179: user.v1.UserService.CreatePermission:output_type -> user.v1.Permission
+	76,  // 180: user.v1.UserService.GetPermission:output_type -> user.v1.Permission
+	76,  // 181: user.v1.UserService.UpdatePermission:output_type -> user.v1.Permission
+	101, // 182: user.v1.UserService.DeletePermission:output_type -> google.protobuf.Empty
+	83,  // 183: user.v1.UserService.CreatePermissionGroup:output_type -> user.v1.PermissionGroup
+	83,  // 184: user.v1.UserService.GetPermissionGroup:output_type -> user.v1.PermissionGroup
+	83,  // 185: user.v1.UserService.UpdatePermissionGroup:output_type -> user.v1.PermissionGroup
+	101, // 186: user.v1.UserService.DeletePermissionGroup:output_type -> google.protobuf.Empty
+	85,  // 187: user.v1.UserService.ListPermissionGroups:output_type -> user.v1.ListPermissionGroupsResponse
+	101, // 188: user.v1.UserService.AddGroupRole:output_type -> google.protobuf.Empty
+	101, // 189: user.v1.UserService.RemoveGroupRole:output_type -> google.protobuf.Empty
+	94,  // 190: user.v1.UserService.ListGroupRoles:output_type -> user.v1.ListGroupRolesResponse
+	101, // 191: user.v1.UserService.AssignRole:output_type -> google.protobuf.Empty
+	101, // 192: user.v1.UserService.RevokeRole:output_type -> google.protobuf.Empty
+	99,  // 193: user.v1.UserService.ListUserRoles:output_type -> user.v1.ListUserRolesResponse
+	135, // [135:194] is the sub-list for method output_type
+	76,  // [76:135] is the sub-list for method input_type
 	76,  // [76:76] is the sub-list for extension type_name
 	76,  // [76:76] is the sub-list for extension extendee
 	0,   // [0:76] is the sub-list for field type_name
@@ -7177,7 +7887,7 @@ func file_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_v1_user_proto_rawDesc), len(file_user_v1_user_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   79,
+			NumMessages:   90,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
