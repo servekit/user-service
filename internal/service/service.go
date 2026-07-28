@@ -632,6 +632,11 @@ func (s *Service) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 	return s.rbacSvc.ListRoles(ctx, req)
 }
 
+// GetRole delegates to rbac subpackage.
+func (s *Service) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.Role, error) {
+	return s.rbacSvc.GetRole(ctx, req)
+}
+
 // ListPermissions delegates to rbac subpackage.
 func (s *Service) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	return s.rbacSvc.ListPermissions(ctx, req)

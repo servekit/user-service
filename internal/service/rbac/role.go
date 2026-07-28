@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -138,6 +139,15 @@ func (s *Service) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 		pbRoles[i] = roleModelToProto(r)
 	}
 	return &pb.ListRolesResponse{Roles: pbRoles, NextCursor: nextCursor}, nil
+}
+
+// GetRole returns a role by ID with its permissions and permission groups populated.
+func (s *Service) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.Role, error) {
+	role, err := dal.GetUserRoleByID(ctx, s.db, req.RoleId)
+	if err != nil {
+		return nil, err
+	}
+	return s.roleModelToProtoFull(ctx, role)
 }
 
 // --- User Roles ---
@@ -299,6 +309,49 @@ func (s *Service) ListGroupRoles(ctx context.Context, req *pb.ListGroupRolesRequ
 }
 
 // --- internal helpers ---
+
+// roleModelToProtoFull builds a Role proto with permissions + permission groups
+// populated. Dangling mapping references (pointing at deleted permissions or
+// groups) are skipped rather than failing the read.
+func (s *Service) roleModelToProtoFull(ctx context.Context, r *models.UserRole) (*pb.Role, error) {
+	out := roleModelToProto(r)
+
+	rps, err := dal.ListRolePermissionMappingsByRoleID(ctx, s.db, r.ID)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	perms := make([]*pb.Permission, 0, len(rps))
+	for _, rp := range rps {
+		p, err := dal.GetUserPermissionByID(ctx, s.db, rp.PermissionID)
+		if err != nil {
+			if errors.Is(err, xcodes.ErrPermissionNotFound.New()) {
+				continue
+			}
+			return nil, err
+		}
+		perms = append(perms, permissionModelToProto(p))
+	}
+	out.Permissions = perms
+
+	rpgs, err := dal.ListRolePermissionGroupMappingsByRoleID(ctx, s.db, r.ID)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	groups := make([]*pb.PermissionGroup, 0, len(rpgs))
+	for _, rpg := range rpgs {
+		pg, err := dal.GetUserPermissionGroupByID(ctx, s.db, rpg.PermissionGroupID)
+		if err != nil {
+			if errors.Is(err, xcodes.ErrPermissionGroupNotFound.New()) {
+				continue
+			}
+			return nil, err
+		}
+		groups = append(groups, permissionGroupModelToProto(pg))
+	}
+	out.PermGroups = groups
+
+	return out, nil
+}
 
 // getUserIDsByRole returns all user IDs that have a specific role (direct + via group).
 func (s *Service) getUserIDsByRole(ctx context.Context, roleID int64) ([]int64, error) {

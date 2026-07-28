@@ -299,3 +299,36 @@ func TestService_PermissionGroup_UpdateWithOverlap(t *testing.T) {
 		t.Fatalf("expected {p2,p3}, got %v", gotIDs)
 	}
 }
+
+// TestService_GetRole_WithPermissions verifies GetRole returns a role with its
+// permissions populated, and returns ErrRoleNotFound for missing IDs.
+func TestService_GetRole_WithPermissions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	svc := newTestService(t)
+
+	perm, err := svc.CreatePermission(context.Background(), &pb.CreatePermissionRequest{Resource: "doc", Action: "read"})
+	if err != nil {
+		t.Fatalf("CreatePermission: %v", err)
+	}
+	role, err := svc.CreateRole(context.Background(), &pb.CreateRoleRequest{Name: "reader", PermissionIds: []int64{perm.GetId()}})
+	if err != nil {
+		t.Fatalf("CreateRole: %v", err)
+	}
+
+	got, err := svc.GetRole(context.Background(), &pb.GetRoleRequest{RoleId: role.GetId()})
+	if err != nil {
+		t.Fatalf("GetRole: %v", err)
+	}
+	if got.GetName() != "reader" {
+		t.Fatalf("name mismatch: %s", got.GetName())
+	}
+	if len(got.GetPermissions()) != 1 || got.GetPermissions()[0].GetId() != perm.GetId() {
+		t.Fatalf("GetRole did not populate permissions: %+v", got.GetPermissions())
+	}
+
+	if _, err := svc.GetRole(context.Background(), &pb.GetRoleRequest{RoleId: 999999}); err == nil {
+		t.Fatal("expected ErrRoleNotFound, got nil")
+	}
+}

@@ -292,6 +292,11 @@ func (h *Handler) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.
 	return h.svc.ListRoles(ctx, req)
 }
 
+// GetRole returns a role by ID, including its permissions and permission groups.
+func (h *Handler) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.Role, error) {
+	return h.svc.GetRole(ctx, req)
+}
+
 // ListPermissions: cursor-paginated permission catalog.
 func (h *Handler) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	return h.svc.ListPermissions(ctx, req)
