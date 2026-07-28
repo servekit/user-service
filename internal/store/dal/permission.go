@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/servekit/user-service/internal/store/generated"
 	"github.com/servekit/user-service/internal/store/models"
@@ -27,7 +28,7 @@ func GetUserPermissionByID(ctx context.Context, tx *gorm.DB, id int64) (*models.
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, xcodes.ErrNotFound.New()
+			return nil, xcodes.ErrPermissionNotFound.New()
 		}
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -42,7 +43,7 @@ func GetUserPermissionByResourceAction(ctx context.Context, tx *gorm.DB, resourc
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, xcodes.ErrNotFound.New()
+			return nil, xcodes.ErrPermissionNotFound.New()
 		}
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -83,4 +84,65 @@ func ListUserPermissionsByPermissionGroupID(ctx context.Context, tx *gorm.DB, gr
 		perms[i] = &results[i]
 	}
 	return perms, nil
+}
+
+// UpdateUserPermission saves all fields of a permission (including zero values).
+func UpdateUserPermission(ctx context.Context, tx *gorm.DB, perm *models.UserPermission) error {
+	result := tx.WithContext(ctx).Save(perm)
+	if result.Error != nil {
+		return xcodes.ErrInternal.Wrap(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return xcodes.ErrPermissionNotFound.New()
+	}
+	return nil
+}
+
+// DeleteUserPermission removes a permission by ID if it is not built-in.
+func DeleteUserPermission(ctx context.Context, tx *gorm.DB, id int64) error {
+	perm, err := gorm.G[models.UserPermission](tx).
+		Where(generated.UserPermission.ID.Eq(id)).
+		Take(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return xcodes.ErrPermissionNotFound.New()
+		}
+		return xcodes.ErrInternal.Wrap(err)
+	}
+	if perm.IsBuiltin {
+		return xcodes.ErrPermissionIsBuiltin.New()
+	}
+	_, err = gorm.G[models.UserPermission](tx).
+		Where(generated.UserPermission.ID.Eq(id)).
+		Delete(ctx)
+	if err != nil {
+		return xcodes.ErrInternal.Wrap(err)
+	}
+	return nil
+}
+
+// ListUserPermissions returns a cursor-paginated list of permissions ordered by ID.
+func ListUserPermissions(ctx context.Context, tx *gorm.DB, cursor string, pageSize int32) ([]*models.UserPermission, string, error) {
+	q := gorm.G[models.UserPermission](tx).Order(generated.UserPermission.ID)
+	if cursor != "" {
+		cursorID, err := strconv.ParseInt(cursor, 10, 64)
+		if err != nil {
+			return nil, "", xcodes.ErrBadRequest.Wrapf(err, "invalid cursor: %s", cursor)
+		}
+		q = q.Where(generated.UserPermission.ID.Gt(cursorID))
+	}
+	results, err := q.Limit(int(pageSize) + 1).Find(ctx)
+	if err != nil {
+		return nil, "", xcodes.ErrInternal.Wrap(err)
+	}
+	perms := make([]*models.UserPermission, len(results))
+	for i := range results {
+		perms[i] = &results[i]
+	}
+	var nextCursor string
+	if len(perms) > int(pageSize) {
+		nextCursor = fmt.Sprintf("%d", perms[pageSize].ID)
+		perms = perms[:pageSize]
+	}
+	return perms, nextCursor, nil
 }

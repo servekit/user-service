@@ -52,3 +52,18 @@ func ListPermissionsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) (
 	}
 	return perms, nil
 }
+
+// ListPermissionGroupIDsByItemPermissionID returns the group IDs that contain a permission.
+func ListPermissionGroupIDsByItemPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) ([]int64, error) {
+	results, err := gorm.G[models.PermissionGroupItemMapping](tx).
+		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
+		Find(ctx)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	ids := make([]int64, len(results))
+	for i := range results {
+		ids[i] = results[i].PermissionGroupID
+	}
+	return ids, nil
+}

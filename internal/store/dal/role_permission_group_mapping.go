@@ -45,3 +45,18 @@ func ListRolePermissionGroupMappingsByRoleID(ctx context.Context, tx *gorm.DB, r
 	}
 	return rpgs, nil
 }
+
+// ListRolePermissionGroupMappingsByPermissionGroupID returns roles referencing a permission group.
+func ListRolePermissionGroupMappingsByPermissionGroupID(ctx context.Context, tx *gorm.DB, permissionGroupID int64) ([]*models.RolePermissionGroupMapping, error) {
+	results, err := gorm.G[models.RolePermissionGroupMapping](tx).
+		Where(generated.RolePermissionGroupMapping.PermissionGroupID.Eq(permissionGroupID)).
+		Find(ctx)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	rpgs := make([]*models.RolePermissionGroupMapping, len(results))
+	for i := range results {
+		rpgs[i] = &results[i]
+	}
+	return rpgs, nil
+}

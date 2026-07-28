@@ -45,3 +45,18 @@ func ListRolePermissionMappingsByRoleID(ctx context.Context, tx *gorm.DB, roleID
 	}
 	return rps, nil
 }
+
+// ListRolePermissionMappingsByPermissionID returns role assignments holding a permission.
+func ListRolePermissionMappingsByPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) ([]*models.RolePermissionMapping, error) {
+	results, err := gorm.G[models.RolePermissionMapping](tx).
+		Where(generated.RolePermissionMapping.PermissionID.Eq(permissionID)).
+		Find(ctx)
+	if err != nil {
+		return nil, xcodes.ErrInternal.Wrap(err)
+	}
+	rps := make([]*models.RolePermissionMapping, len(results))
+	for i := range results {
+		rps[i] = &results[i]
+	}
+	return rps, nil
+}
