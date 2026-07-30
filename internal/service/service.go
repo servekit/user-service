@@ -179,6 +179,11 @@ func (s *Service) Ping(ctx context.Context) (*pb.Pong, error) {
 // socialsvc.New, so a configured-but-misconfigured provider (bad redirect_url)
 // still fails at startup.
 func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid gid_service.GIDService, message message_service.MessageService, captchaSvc *captcha.Captcha, miniRefreshErrorHook func(string, error)) (*Service, []string, error) {
+	// A fully-nil cfg (e.g. an embedder that left third_party.user.config empty)
+	// boots as an empty config — every sub-config then resolves to its defaults.
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
 	// Session manager — fall back to documented defaults when cfg.Session is nil.
 	sessionCfg := cfg.Session
 	if sessionCfg == nil {
