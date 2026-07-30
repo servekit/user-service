@@ -9,15 +9,15 @@ import (
 
 // Module is a MessageService backend backed by an in-process message-service.
 type Module struct {
-	hdl  *messageservice.Handler
-	owns bool
+	hdl *messageservice.Handler
 }
 
-// NewModule wraps a pre-built message-service Handler as a MessageService.
-// owns=true when the caller built the Handler (Close Stops it); false when it
-// was injected by a parent that owns its lifecycle (Close is a no-op).
-func NewModule(h *messageservice.Handler, owns bool) MessageService {
-	return &Module{hdl: h, owns: owns}
+// NewModule wraps a pre-built message-service Handler as a MessageService. The
+// module owns none of the Handler's lifecycle: resolveMessage registers the raw
+// Handler with the lifecycle Manager (mgr.Add drives its Start/Stop), whether
+// it was built here or injected by a parent. See Close for why it is a no-op.
+func NewModule(h *messageservice.Handler) MessageService {
+	return &Module{hdl: h}
 }
 
 // SendEmail delegates to the embedded message-service handler.
@@ -30,12 +30,10 @@ func (m *Module) SendSMS(ctx context.Context, req *messagepb.SendSMSRequest) (*m
 	return m.hdl.SendSMS(ctx, req)
 }
 
-// Close stops the Handler only if this wrapper owns it (self-built). A borrowed
-// (injected) Handler is left to its owner, so Close is a no-op — the parent's
-// lifecycle Stops it.
+// Close is a no-op. The Handler's lifecycle is owned by the lifecycle Manager
+// (resolveMessage registers it via mgr.Add), not by this module, so the module
+// has nothing to release. The method exists only to satisfy the MessageService
+// interface, whose grpc backend needs a real Close to drop its connection.
 func (m *Module) Close() error {
-	if !m.owns {
-		return nil
-	}
-	return m.hdl.Stop()
+	return nil
 }

@@ -19,6 +19,19 @@ import (
 	"github.com/servekit/go-common/ratelimit"
 	"github.com/servekit/go-common/redisx"
 
+	pb "github.com/servekit/user-service/gen/user/v1"
+	"github.com/servekit/user-service/internal/cache"
+	"github.com/servekit/user-service/internal/identity"
+	"github.com/servekit/user-service/internal/identity/apple"
+	"github.com/servekit/user-service/internal/identity/github"
+	"github.com/servekit/user-service/internal/identity/google"
+	"github.com/servekit/user-service/internal/identity/tencent/mini"
+	"github.com/servekit/user-service/internal/identity/tencent/wechat"
+	authsvc "github.com/servekit/user-service/internal/service/auth"
+	rbacsvc "github.com/servekit/user-service/internal/service/rbac"
+	"github.com/servekit/user-service/internal/service/session"
+	socialsvc "github.com/servekit/user-service/internal/service/social"
+	usersvc "github.com/servekit/user-service/internal/service/user"
 	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
 	message_service "github.com/servekit/user-service/internal/thirdcall/message_service"
 	"github.com/servekit/user-service/pkg/config"
@@ -31,7 +44,7 @@ import (
 //
 // Each resolve* returns a resource: an injected one (option.With…) is used
 // as-is with the caller owning its lifecycle; otherwise it is built from cfg
-// and registered with the lifecycle Manager so mgr.Stop shuts it down.
+// and registered with the lifecycle Manager, which starts and stops it.
 
 // resolveDB returns the DB to use. If injected via option, ownership stays with
 // the caller and nothing is registered with mgr. If created from cfg, a Stopper
@@ -70,14 +83,16 @@ func resolveRedis(o *option.Options, cfg *config.Config, mgr *lifecycle.Manager)
 // resolveGID returns the GIDService (for this service's domains) and, in module
 // mode, the raw *gidservice.Handler (so an embedded message-service can share
 // it via messageoption.WithGIDHandler). grpc mode returns a nil raw — there is
-// no in-process Handler to share, so message-service dials its own. grpc and
-// self-built register a Stopper; an injected Handler is borrowed (parent owns
-// lifecycle, no Stopper). The GIDService interface is internal.
+// no in-process Handler to share, so message-service dials its own. grpc mode
+// registers a stopper (the GIDService's Close drops the connection); module
+// mode registers the raw Handler with the Manager via mgr.Add (it owns the
+// Handler's Start/Stop); an injected Handler is borrowed (parent owns
+// lifecycle, nothing registered). The GIDService interface is internal.
 func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Config], mgr *lifecycle.Manager) (gid_service.GIDService, *gidservice.Handler, error) {
 	// Injected handler takes precedence (a parent shares its gid Handler),
 	// even if cfg is nil (no ThirdParty.GID configured).
 	if o.GIDHandler != nil {
-		return gid_service.NewModule(o.GIDHandler, false), o.GIDHandler, nil
+		return gid_service.NewModule(o.GIDHandler), o.GIDHandler, nil
 	}
 	if cfg == nil {
 		return nil, nil, fmt.Errorf("third_party.gid: not configured")
@@ -98,8 +113,8 @@ func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Co
 		if err != nil {
 			return nil, nil, fmt.Errorf("init gid-service: %w", err)
 		}
-		gid := gid_service.NewModule(hdl, true)
-		mgr.AddStopper("gid", lifecycle.StopFunc(func() { _ = gid.Close() }))
+		gid := gid_service.NewModule(hdl)
+		mgr.Add("gid-service", hdl)
 		return gid, hdl, nil
 	default:
 		return nil, nil, fmt.Errorf("third_party.gid: unknown mode %q", cfg.Mode)
@@ -107,18 +122,20 @@ func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Co
 }
 
 // resolveMessage returns the MessageService. grpc mode dials cfg.Target and
-// registers a Stopper; module mode uses an injected raw *messageservice.Handler
-// (option.WithMessageHandler) when a parent embeds this service (parent owns
-// lifecycle, no Stopper), otherwise builds one from cfg.Config (standalone) and
-// registers a Stopper. gidRaw (non-nil in module mode) is shared into
-// message-service via WithGIDHandler so it reuses this service's gid Handler;
-// when nil (grpc mode) message-service resolves its own gid. The MessageService
-// interface is internal.
+// registers a stopper (the MessageService's Close drops the connection); module
+// mode uses an injected raw *messageservice.Handler (option.WithMessageHandler)
+// when a parent embeds this service (parent owns lifecycle, nothing
+// registered), otherwise builds one from cfg.Config (standalone) and registers
+// the raw Handler with the Manager via mgr.Add (it owns the Handler's
+// Start/Stop). gidRaw (non-nil in module mode) is shared into message-service
+// via WithGIDHandler so it reuses this service's gid Handler; when nil (grpc
+// mode) message-service resolves its own gid. The MessageService interface is
+// internal.
 func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messageconfig.Config], db *gorm.DB, rdb *redis.Client, gidRaw *gidservice.Handler, mgr *lifecycle.Manager) (message_service.MessageService, error) {
 	// Injected handler takes precedence (a parent shares its message Handler),
 	// even if cfg is nil (no ThirdParty.Message configured).
 	if o.MessageHandler != nil {
-		return message_service.NewModule(o.MessageHandler, false), nil
+		return message_service.NewModule(o.MessageHandler), nil
 	}
 	if cfg == nil {
 		return nil, fmt.Errorf("third_party.message: not configured")
@@ -149,8 +166,8 @@ func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messagec
 		if err != nil {
 			return nil, fmt.Errorf("init message-service: %w", err)
 		}
-		msg := message_service.NewModule(hdl, true)
-		mgr.AddStopper("message-service", lifecycle.StopFunc(func() { _ = msg.Close() }))
+		msg := message_service.NewModule(hdl)
+		mgr.Add("message-service", hdl)
 		return msg, nil
 	default:
 		return nil, fmt.Errorf("third_party.message: unknown mode %q", cfg.Mode)
@@ -288,4 +305,116 @@ func resolveRBACConfig(cfg *config.RBACConfig) *config.RBACConfig {
 	resolved := *cfg
 	resolved.Cache = &config.RBACCacheConfig{}
 	return &resolved
+}
+
+// --- service construction ---
+
+// newWithDeps constructs the Service with all subpackages wired up.
+//
+// Nil-safety: sub-configs that may be nil in a minimal/empty config (e.g. an
+// embedder booting with no OAuth providers, no Session/RBAC block) are
+// resolved to safe defaults before use. A provider is "configured" only when
+// it carries real credentials (nil OR empty-creds => skipped entirely — not
+// built, not validated). Configured providers still get full validation via
+// socialsvc.New, so a configured-but-misconfigured provider (bad redirect_url)
+// still fails at startup.
+func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid gid_service.GIDService, message message_service.MessageService, captchaSvc *captcha.Captcha, miniRefreshErrorHook func(string, error)) (*Service, []string, error) {
+	// A fully-nil cfg (e.g. an embedder that left third_party.user.config empty)
+	// boots as an empty config — every sub-config then resolves to its defaults.
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+	// Session manager — fall back to documented defaults when cfg.Session is nil.
+	sessionCfg := cfg.Session
+	if sessionCfg == nil {
+		sessionCfg = defaultSessionConfig()
+	}
+	sessionMgr := session.NewManager(rdb, sessionCfg)
+
+	// OAuth — only construct providers that carry real credentials. A nil
+	// cfg.OAuth or nil/empty-creds provider blocks are "not configured" and
+	// skipped entirely. oauthCfg stays as cfg.OAuth (possibly nil) so the
+	// social service preserves its nil-oauth defense-in-depth in
+	// validateReturnTo, and validateOAuthConfig short-circuits on nil.
+	oauthCfg := cfg.OAuth
+
+	var wechatMgr *mini.Manager
+	socialProviders := make(map[pb.IdentityProvider]identity.SocialProvider)
+	if oauthCfg != nil {
+		if oauthCfg.WeChat.IsConfigured() {
+			wechatMgr = mini.NewManager(&mini.Config{
+				Credentials: map[string]string{
+					oauthCfg.WeChat.AppID: oauthCfg.WeChat.AppSecret,
+				},
+				OnRefreshError: miniRefreshErrorHook,
+			})
+		}
+		if oauthCfg.GitHub.IsConfigured() {
+			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_GITHUB] = github.New(
+				oauthCfg.GitHub.ClientID, oauthCfg.GitHub.ClientSecret, oauthCfg.GitHub.RedirectURL,
+			)
+		}
+		if oauthCfg.Google.IsConfigured() {
+			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_GOOGLE] = google.New(
+				oauthCfg.Google.ClientID, oauthCfg.Google.ClientSecret, oauthCfg.Google.RedirectURL,
+			)
+		}
+		if oauthCfg.WeChat.IsConfigured() {
+			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT] = wechat.New(
+				oauthCfg.WeChat.AppID, oauthCfg.WeChat.AppSecret, oauthCfg.WeChat.RedirectURL,
+			)
+			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT_MINIPROGRAM] = mini.NewProvider(
+				oauthCfg.WeChat.AppID, wechatMgr,
+			)
+		}
+		if oauthCfg.Apple.IsConfigured() {
+			// apple.New parses the private key strictly; only call it when Apple
+			// is fully configured so an empty key never reaches it.
+			appleProvider, err := apple.New(apple.Config{
+				ClientID:        oauthCfg.Apple.ClientID,
+				TeamID:          oauthCfg.Apple.TeamID,
+				KeyID:           oauthCfg.Apple.KeyID,
+				RedirectURL:     oauthCfg.Apple.RedirectURL,
+				PrivateKeyPEM:   oauthCfg.Apple.PrivateKey,
+				ClientSecretTTL: oauthCfg.Apple.ClientSecretTTL,
+			})
+			if err != nil {
+				return nil, nil, fmt.Errorf("init apple provider: %w", err)
+			}
+			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_APPLE] = appleProvider
+		}
+	}
+
+	// RBAC — fall back to an empty config when nil; ensure Cache sub-config is
+	// non-nil so later cache writes (which deref cfg.RBAC.Cache) don't panic.
+	// Build a local resolved value to avoid mutating the caller's cfg.
+	rbacCfg := resolveRBACConfig(cfg.RBAC)
+	rbacCache := cache.NewRBACCache(rdb, rbacCfg)
+
+	// Subpackages
+	loginRateLimit := resolveLoginRateLimit(cfg)
+	loginLimiter := ratelimit.NewRedisLimiter(rdb, loginRateLimit)
+	codeLimiter := ratelimit.NewRedisLimiter(rdb, resolveCodeRateLimit(cfg))
+	sessionHandler := session.New(db, sessionMgr)
+	authHandler := authsvc.New(db, sessionMgr, captchaSvc, loginLimiter, codeLimiter, gid, message)
+	userHandler := usersvc.New(db, gid, sessionHandler, captchaSvc)
+	socialHandler, socialWarnings, err := socialsvc.New(db, sessionMgr, socialProviders, gid, rdb, oauthCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("init social service: %w", err)
+	}
+	rbacHandler := rbacsvc.New(db, rbacCache, gid)
+
+	return &Service{
+		db:         db,
+		rdb:        rdb,
+		gid:        gid,
+		message:    message,
+		sessionMgr: sessionMgr,
+		auth:       authHandler,
+		user:       userHandler,
+		social:     socialHandler,
+		sess:       sessionHandler,
+		rbacSvc:    rbacHandler,
+		startedAt:  time.Now().UnixMilli(),
+	}, socialWarnings, nil
 }

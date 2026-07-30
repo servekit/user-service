@@ -28,13 +28,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
-	"github.com/servekit/user-service/internal/cache"
-	"github.com/servekit/user-service/internal/identity"
-	"github.com/servekit/user-service/internal/identity/apple"
-	"github.com/servekit/user-service/internal/identity/github"
-	"github.com/servekit/user-service/internal/identity/google"
-	"github.com/servekit/user-service/internal/identity/tencent/mini"
-	"github.com/servekit/user-service/internal/identity/tencent/wechat"
 	"github.com/servekit/user-service/internal/jobs"
 	authsvc "github.com/servekit/user-service/internal/service/auth"
 	rbacsvc "github.com/servekit/user-service/internal/service/rbac"
@@ -47,10 +40,8 @@ import (
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
 
-	"github.com/servekit/go-common/captcha"
 	"github.com/servekit/go-common/cronx"
 	"github.com/servekit/go-common/lifecycle"
-	"github.com/servekit/go-common/ratelimit"
 )
 
 // Service holds user-service business state. Each domain field is a subpackage
@@ -167,117 +158,8 @@ func (s *Service) Ping(ctx context.Context) (*pb.Pong, error) {
 }
 
 // Resource resolve helpers (resolveDB/resolveRedis/resolveGID/resolveMessage/
-// resolveCaptcha + rate-limit defaults) live in helper.go.
-
-// newWithDeps constructs the Service with all subpackages wired up.
-//
-// Nil-safety: sub-configs that may be nil in a minimal/empty config (e.g. an
-// embedder booting with no OAuth providers, no Session/RBAC block) are
-// resolved to safe defaults before use. A provider is "configured" only when
-// it carries real credentials (nil OR empty-creds => skipped entirely — not
-// built, not validated). Configured providers still get full validation via
-// socialsvc.New, so a configured-but-misconfigured provider (bad redirect_url)
-// still fails at startup.
-func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid gid_service.GIDService, message message_service.MessageService, captchaSvc *captcha.Captcha, miniRefreshErrorHook func(string, error)) (*Service, []string, error) {
-	// A fully-nil cfg (e.g. an embedder that left third_party.user.config empty)
-	// boots as an empty config — every sub-config then resolves to its defaults.
-	if cfg == nil {
-		cfg = &config.Config{}
-	}
-	// Session manager — fall back to documented defaults when cfg.Session is nil.
-	sessionCfg := cfg.Session
-	if sessionCfg == nil {
-		sessionCfg = defaultSessionConfig()
-	}
-	sessionMgr := session.NewManager(rdb, sessionCfg)
-
-	// OAuth — only construct providers that carry real credentials. A nil
-	// cfg.OAuth or nil/empty-creds provider blocks are "not configured" and
-	// skipped entirely. oauthCfg stays as cfg.OAuth (possibly nil) so the
-	// social service preserves its nil-oauth defense-in-depth in
-	// validateReturnTo, and validateOAuthConfig short-circuits on nil.
-	oauthCfg := cfg.OAuth
-
-	var wechatMgr *mini.Manager
-	socialProviders := make(map[pb.IdentityProvider]identity.SocialProvider)
-	if oauthCfg != nil {
-		if oauthCfg.WeChat.IsConfigured() {
-			wechatMgr = mini.NewManager(&mini.Config{
-				Credentials: map[string]string{
-					oauthCfg.WeChat.AppID: oauthCfg.WeChat.AppSecret,
-				},
-				OnRefreshError: miniRefreshErrorHook,
-			})
-		}
-		if oauthCfg.GitHub.IsConfigured() {
-			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_GITHUB] = github.New(
-				oauthCfg.GitHub.ClientID, oauthCfg.GitHub.ClientSecret, oauthCfg.GitHub.RedirectURL,
-			)
-		}
-		if oauthCfg.Google.IsConfigured() {
-			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_GOOGLE] = google.New(
-				oauthCfg.Google.ClientID, oauthCfg.Google.ClientSecret, oauthCfg.Google.RedirectURL,
-			)
-		}
-		if oauthCfg.WeChat.IsConfigured() {
-			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT] = wechat.New(
-				oauthCfg.WeChat.AppID, oauthCfg.WeChat.AppSecret, oauthCfg.WeChat.RedirectURL,
-			)
-			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT_MINIPROGRAM] = mini.NewProvider(
-				oauthCfg.WeChat.AppID, wechatMgr,
-			)
-		}
-		if oauthCfg.Apple.IsConfigured() {
-			// apple.New parses the private key strictly; only call it when Apple
-			// is fully configured so an empty key never reaches it.
-			appleProvider, err := apple.New(apple.Config{
-				ClientID:        oauthCfg.Apple.ClientID,
-				TeamID:          oauthCfg.Apple.TeamID,
-				KeyID:           oauthCfg.Apple.KeyID,
-				RedirectURL:     oauthCfg.Apple.RedirectURL,
-				PrivateKeyPEM:   oauthCfg.Apple.PrivateKey,
-				ClientSecretTTL: oauthCfg.Apple.ClientSecretTTL,
-			})
-			if err != nil {
-				return nil, nil, fmt.Errorf("init apple provider: %w", err)
-			}
-			socialProviders[pb.IdentityProvider_IDENTITY_PROVIDER_APPLE] = appleProvider
-		}
-	}
-
-	// RBAC — fall back to an empty config when nil; ensure Cache sub-config is
-	// non-nil so later cache writes (which deref cfg.RBAC.Cache) don't panic.
-	// Build a local resolved value to avoid mutating the caller's cfg.
-	rbacCfg := resolveRBACConfig(cfg.RBAC)
-	rbacCache := cache.NewRBACCache(rdb, rbacCfg)
-
-	// Subpackages
-	loginRateLimit := resolveLoginRateLimit(cfg)
-	loginLimiter := ratelimit.NewRedisLimiter(rdb, loginRateLimit)
-	codeLimiter := ratelimit.NewRedisLimiter(rdb, resolveCodeRateLimit(cfg))
-	sessionHandler := session.New(db, sessionMgr)
-	authHandler := authsvc.New(db, sessionMgr, captchaSvc, loginLimiter, codeLimiter, gid, message)
-	userHandler := usersvc.New(db, gid, sessionHandler, captchaSvc)
-	socialHandler, socialWarnings, err := socialsvc.New(db, sessionMgr, socialProviders, gid, rdb, oauthCfg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("init social service: %w", err)
-	}
-	rbacHandler := rbacsvc.New(db, rbacCache, gid)
-
-	return &Service{
-		db:         db,
-		rdb:        rdb,
-		gid:        gid,
-		message:    message,
-		sessionMgr: sessionMgr,
-		auth:       authHandler,
-		user:       userHandler,
-		social:     socialHandler,
-		sess:       sessionHandler,
-		rbacSvc:    rbacHandler,
-		startedAt:  time.Now().UnixMilli(),
-	}, socialWarnings, nil
-}
+// resolveCaptcha + rate-limit defaults) and the subpackage wiring constructor
+// newWithDeps live in helper.go.
 
 // setupJobs builds the jobs.Scheduler from cfg.Cron, registers it with mgr so
 // its lifecycle is managed alongside other owned resources, and wires periodic
