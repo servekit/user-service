@@ -1,43 +1,23 @@
-// Package message_service provides two MessageService backends: in-process module and gRPC.
 package message_service
 
 import (
 	"context"
-	"fmt"
 
 	messagepb "github.com/servekit/message-service/gen/message/v1"
 	messageservice "github.com/servekit/message-service/pkg"
-	messageconfig "github.com/servekit/message-service/pkg/config"
-	messageoption "github.com/servekit/message-service/pkg/option"
-	messagethirdcall "github.com/servekit/message-service/pkg/thirdcall"
-
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
 // Module is a MessageService backend backed by an in-process message-service.
 type Module struct {
-	hdl *messageservice.Handler
+	hdl  *messageservice.Handler
+	owns bool
 }
 
-// NewModule creates a MessageService backed by an in-process message-service
-// instance. Parent DB/Redis are injected (not owned); message-service uses
-// them instead of creating its own connections from cfg. gid must already
-// satisfy message-service's GIDService interface (caller adapts if needed).
-func NewModule(cfg *messageconfig.Config, parentDB *gorm.DB, parentRDB *redis.Client, gid messagethirdcall.GIDService) (*Module, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("message-service module: config is nil")
-	}
-	hdl, err := messageservice.NewModule(
-		cfg,
-		messageoption.WithDB(parentDB),
-		messageoption.WithRedis(parentRDB),
-		messageoption.WithGIDService(gid),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("init message-service module: %w", err)
-	}
-	return &Module{hdl: hdl}, nil
+// NewModule wraps a pre-built message-service Handler as a MessageService.
+// owns=true when the caller built the Handler (Close Stops it); false when it
+// was injected by a parent that owns its lifecycle (Close is a no-op).
+func NewModule(h *messageservice.Handler, owns bool) MessageService {
+	return &Module{hdl: h, owns: owns}
 }
 
 // SendEmail delegates to the embedded message-service handler.
@@ -50,5 +30,12 @@ func (m *Module) SendSMS(ctx context.Context, req *messagepb.SendSMSRequest) (*m
 	return m.hdl.SendSMS(ctx, req)
 }
 
-// Close stops the embedded message-service (cron jobs, persistence writers, etc.).
-func (m *Module) Close() error { return m.hdl.Stop() }
+// Close stops the Handler only if this wrapper owns it (self-built). A borrowed
+// (injected) Handler is left to its owner, so Close is a no-op — the parent's
+// lifecycle Stops it.
+func (m *Module) Close() error {
+	if !m.owns {
+		return nil
+	}
+	return m.hdl.Stop()
+}

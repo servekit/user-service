@@ -10,8 +10,9 @@ package handler
 import (
 	"context"
 
-	"github.com/servekit/go-common/signalx"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/servekit/go-common/signalx"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/service"

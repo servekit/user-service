@@ -14,9 +14,10 @@ import (
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
+	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
+	message_service "github.com/servekit/user-service/internal/thirdcall/message_service"
 	"github.com/servekit/user-service/internal/utils/credentials"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
-	"github.com/servekit/user-service/pkg/thirdcall"
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"github.com/servekit/go-common/captcha"
@@ -35,8 +36,8 @@ type Service struct {
 	captcha      *captcha.Captcha
 	loginLimiter ratelimit.Limiter
 	codeLimiter  ratelimit.Limiter
-	gid          thirdcall.GIDService
-	message      thirdcall.MessageService
+	gid          gid_service.GIDService
+	message      message_service.MessageService
 }
 
 // New creates a new auth Service. loginLimiter caps login attempts per
@@ -49,8 +50,8 @@ func New(
 	captchaSvc *captcha.Captcha,
 	loginLimiter ratelimit.Limiter,
 	codeLimiter ratelimit.Limiter,
-	gid thirdcall.GIDService,
-	message thirdcall.MessageService,
+	gid gid_service.GIDService,
+	message message_service.MessageService,
 ) *Service {
 	return &Service{
 		db:           db,

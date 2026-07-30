@@ -19,9 +19,9 @@ import (
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
+	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
 	"github.com/servekit/user-service/pkg/config"
-	"github.com/servekit/user-service/pkg/thirdcall"
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"github.com/servekit/go-common/ptr"
@@ -53,7 +53,7 @@ type Service struct {
 	db              *gorm.DB
 	sessionMgr      *userstore.Manager
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider
-	gid             thirdcall.GIDService
+	gid             gid_service.GIDService
 	rdb             *redis.Client
 	oauth           *config.OAuthConfig
 }
@@ -73,7 +73,7 @@ func New(
 	db *gorm.DB,
 	sessionMgr *userstore.Manager,
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider,
-	gid thirdcall.GIDService,
+	gid gid_service.GIDService,
 	rdb *redis.Client,
 	oauth *config.OAuthConfig,
 ) (*Service, []string, error) {

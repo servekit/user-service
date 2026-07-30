@@ -1,4 +1,3 @@
-// Package message_service provides two MessageService backends: in-process module and gRPC.
 package message_service
 
 import (
@@ -16,7 +15,7 @@ type GRPC struct {
 }
 
 // NewGRPC creates a MessageService backed by a gRPC connection to message-service.
-func NewGRPC(target string) (*GRPC, error) {
+func NewGRPC(target string) (MessageService, error) {
 	client, err := messageservice.NewClient(target)
 	if err != nil {
 		return nil, fmt.Errorf("dial message-service: %w", err)

@@ -2,23 +2,29 @@ package handler_test
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	gidservice "github.com/servekit/gid-service/pkg"
+	gidconfig "github.com/servekit/gid-service/pkg/config"
 
 	"github.com/servekit/go-common/captcha"
 	"github.com/servekit/go-common/dbx"
 	"github.com/servekit/go-common/logging"
 	"github.com/servekit/go-common/redisx"
 
-	messagepb "github.com/servekit/message-service/gen/message/v1"
+	messageservice "github.com/servekit/message-service/pkg"
+	messageconfig "github.com/servekit/message-service/pkg/config"
+	messageoption "github.com/servekit/message-service/pkg/option"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/store/models"
 	userservice "github.com/servekit/user-service/pkg"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
-	"github.com/servekit/user-service/pkg/thirdcall"
+
+	"gorm.io/gorm"
 )
 
 // TestHandler_Login_NoUsers verifies that Handler is constructed via
@@ -41,11 +47,13 @@ func TestHandler_Login_NoUsers(t *testing.T) {
 		t.Fatalf("captcha.New: %v", err)
 	}
 
+	gidHdl := testGIDHandler(t)
+	msgHdl := testMessageHandler(t, db, rdb, gidHdl)
 	hdl, err := userservice.NewModule(testConfig(),
 		option.WithDB(db),
 		option.WithRedis(rdb),
-		option.WithGIDService(stubGID()),
-		option.WithMessageService(stubMessage()),
+		option.WithGIDHandler(gidHdl),
+		option.WithMessageHandler(msgHdl),
 		option.WithCaptcha(cap),
 	)
 	if err != nil {
@@ -84,37 +92,50 @@ func testConfig() *config.Config {
 			WeChat: &config.OAuthWeChatConfig{},
 			Apple:  &config.OAuthAppleConfig{},
 		},
-		ThirdParty: &config.ThirdPartyConfig{},
-		RateLimit:  &config.RateLimitConfig{},
-		Log:        &logging.Config{Level: "error"},
+		ThirdParty: &config.ThirdPartyConfig{
+			GID:     &config.RemoteServiceConfig[*gidconfig.Config]{Mode: "module"},
+			Message: &config.RemoteServiceConfig[*messageconfig.Config]{Mode: "module"},
+		},
+		RateLimit: &config.RateLimitConfig{},
+		Log:       &logging.Config{Level: "error"},
 	}
 }
 
 // --- test helpers ---
 
-// stubGIDService is a thirdcall.GIDService that issues sequential IDs starting at 1000.
-type stubGIDService struct{ next int64 }
-
-func (s *stubGIDService) NextID(_ context.Context) (int64, error) {
-	return atomic.AddInt64(&s.next, 1) + 999, nil
+// testGIDHandler builds a real in-process gid-service Handler for tests. The
+// raw Handler is what option.WithGIDHandler injects; user-service wraps it
+// internally. Snowflake only needs MachineID + StartTime.
+func testGIDHandler(t *testing.T) *gidservice.Handler {
+	t.Helper()
+	hdl, err := gidservice.NewModule(&gidconfig.Config{
+		Snowflake: &gidconfig.SnowflakeConfig{
+			MachineID: 1,
+			StartTime: time.Now().Add(-time.Hour),
+		},
+	})
+	if err != nil {
+		t.Fatalf("gid handler: %v", err)
+	}
+	return hdl
 }
 
-func stubGID() thirdcall.GIDService { return &stubGIDService{} }
-
-var _ thirdcall.GIDService = (*stubGIDService)(nil)
-
-// stubMessageService is a no-op thirdcall.MessageService for tests that exercise
-// flows which don't actually send messages.
-type stubMessageService struct{}
-
-func (stubMessageService) SendEmail(_ context.Context, _ *messagepb.SendEmailRequest) (*messagepb.SendResponse, error) {
-	return &messagepb.SendResponse{}, nil
+// testMessageHandler builds a real in-process message-service Handler for tests.
+// In module mode the Handler must be injected by the caller
+// (option.WithMessageHandler); this builds one sharing the test DB/Redis and gid.
+func testMessageHandler(t *testing.T, db *gorm.DB, rdb *redis.Client, gidHdl *gidservice.Handler) *messageservice.Handler {
+	t.Helper()
+	hdl, err := messageservice.NewModule(
+		&messageconfig.Config{
+			Email: &messageconfig.EmailConfig{IdempotencyTTL: "5m"},
+			SMS:   &messageconfig.SMSConfig{IdempotencyTTL: "5m"},
+		},
+		messageoption.WithDB(db),
+		messageoption.WithRedis(rdb),
+		messageoption.WithGIDHandler(gidHdl),
+	)
+	if err != nil {
+		t.Fatalf("message handler: %v", err)
+	}
+	return hdl
 }
-func (stubMessageService) SendSMS(_ context.Context, _ *messagepb.SendSMSRequest) (*messagepb.SendResponse, error) {
-	return &messagepb.SendResponse{}, nil
-}
-func (stubMessageService) Close() error { return nil }
-
-func stubMessage() thirdcall.MessageService { return stubMessageService{} }
-
-var _ thirdcall.MessageService = stubMessageService{}

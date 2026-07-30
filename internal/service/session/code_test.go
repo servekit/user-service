@@ -9,9 +9,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
-	"github.com/servekit/go-common/redisx"
 	"github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/pkg/config"
+
+	"github.com/servekit/go-common/redisx"
 )
 
 // newCodeTestManager builds a Manager backed by miniredis with a short

@@ -2,11 +2,12 @@
 package option
 
 import (
-	"github.com/servekit/go-common/captcha"
 	"github.com/redis/go-redis/v9"
+	gidservice "github.com/servekit/gid-service/pkg"
+	messageservice "github.com/servekit/message-service/pkg"
 	"gorm.io/gorm"
 
-	"github.com/servekit/user-service/pkg/thirdcall"
+	"github.com/servekit/go-common/captcha"
 )
 
 // Option configures a UserService instance.
@@ -17,9 +18,9 @@ type Options struct {
 	DB                   *gorm.DB
 	RDB                  *redis.Client
 	Captcha              *captcha.Captcha
-	GIDService           thirdcall.GIDService
-	MessageService       thirdcall.MessageService
-	MiniRefreshErrorHook func(appID string, err error)
+	GIDHandler           *gidservice.Handler
+	MessageHandler       *messageservice.Handler
+	MiniRefreshErrorHook func(string, error)
 }
 
 // WithDB injects an external database connection. UserService will not close it.
@@ -37,23 +38,25 @@ func WithCaptcha(c *captcha.Captcha) Option {
 	return func(o *Options) { o.Captcha = c }
 }
 
-// WithGIDService injects an external gid-service instance.
-// If not set, the service creates one from cfg.ThirdParty.GID.
-func WithGIDService(svc thirdcall.GIDService) Option {
-	return func(o *Options) { o.GIDService = svc }
+// WithGIDHandler injects a raw gid-service Handler. UserService wraps it
+// internally into its GIDService; callers do not need to know that interface.
+// If not set, the service builds one from cfg.ThirdParty.GID.
+func WithGIDHandler(h *gidservice.Handler) Option {
+	return func(o *Options) { o.GIDHandler = h }
 }
 
-// WithMessageService injects an external message-service instance.
-// If not set, the service creates one from cfg.ThirdParty.Message.
-func WithMessageService(svc thirdcall.MessageService) Option {
-	return func(o *Options) { o.MessageService = svc }
+// WithMessageHandler injects a raw message-service Handler. UserService wraps
+// it internally into its MessageService; callers do not need to know that
+// interface. If not set, the service builds one from cfg.ThirdParty.Message.
+func WithMessageHandler(h *messageservice.Handler) Option {
+	return func(o *Options) { o.MessageHandler = h }
 }
 
 // WithMiniRefreshErrorHook injects a callback invoked when the WeChat Mini
 // Program token-cache background refresh fails. Pass nil to silence these
 // errors. The hook is the only way the mini package surfaces async refresh
 // failures; it never logs on its own.
-func WithMiniRefreshErrorHook(hook func(appID string, err error)) Option {
+func WithMiniRefreshErrorHook(hook func(string, error)) Option {
 	return func(o *Options) { o.MiniRefreshErrorHook = hook }
 }
 

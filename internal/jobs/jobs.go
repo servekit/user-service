@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/robfig/cron/v3"
+
 	"github.com/servekit/go-common/cronx"
 	"github.com/servekit/go-common/lifecycle"
-	"github.com/robfig/cron/v3"
 )
 
 // Scheduler wraps *cron.Cron and implements lifecycle.Service.

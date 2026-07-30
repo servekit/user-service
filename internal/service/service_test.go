@@ -7,16 +7,21 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	gidservice "github.com/servekit/gid-service/pkg"
+	gidconfig "github.com/servekit/gid-service/pkg/config"
 
 	"github.com/servekit/go-common/captcha"
 	"github.com/servekit/go-common/dbx"
 	"github.com/servekit/go-common/logging"
 	"github.com/servekit/go-common/redisx"
 
-	messagepb "github.com/servekit/message-service/gen/message/v1"
+	messageservice "github.com/servekit/message-service/pkg"
+	messageconfig "github.com/servekit/message-service/pkg/config"
+	messageoption "github.com/servekit/message-service/pkg/option"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/service"
@@ -24,7 +29,6 @@ import (
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
-	"github.com/servekit/user-service/pkg/thirdcall"
 
 	"gorm.io/gorm"
 )
@@ -48,7 +52,9 @@ func TestService_Login_UnknownUser(t *testing.T) {
 		t.Fatalf("captcha.New: %v", err)
 	}
 
-	svc, _, err := service.New(testConfig(), option.WithDB(db), option.WithRedis(rdb), option.WithGIDService(stubGID()), option.WithCaptcha(cap), option.WithMessageService(stubMessage()))
+	gidHdl := testGIDHandler(t)
+	msgHdl := testMessageHandler(t, db, rdb, gidHdl)
+	svc, _, err := service.New(testConfig(), option.WithDB(db), option.WithRedis(rdb), option.WithGIDHandler(gidHdl), option.WithMessageHandler(msgHdl), option.WithCaptcha(cap))
 	if err != nil {
 		t.Fatalf("service.New: %v", err)
 	}
@@ -84,9 +90,12 @@ func testConfig() *config.Config {
 				PrivateKey:  testAppleKeyPEM,
 			},
 		},
-		ThirdParty: &config.ThirdPartyConfig{},
-		RateLimit:  &config.RateLimitConfig{},
-		Log:        &logging.Config{Level: "error"},
+		ThirdParty: &config.ThirdPartyConfig{
+			GID:     &config.RemoteServiceConfig[*gidconfig.Config]{Mode: "module"},
+			Message: &config.RemoteServiceConfig[*messageconfig.Config]{Mode: "module"},
+		},
+		RateLimit: &config.RateLimitConfig{},
+		Log:       &logging.Config{Level: "error"},
 	}
 }
 
@@ -120,39 +129,51 @@ func newTestService(t *testing.T) (*service.Service, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("captcha.New: %v", err)
 	}
-	svc, _, err := service.New(testConfig(), option.WithDB(db), option.WithRedis(rdb), option.WithGIDService(stubGID()), option.WithCaptcha(cap), option.WithMessageService(stubMessage()))
+	gidHdl := testGIDHandler(t)
+	msgHdl := testMessageHandler(t, db, rdb, gidHdl)
+	svc, _, err := service.New(testConfig(), option.WithDB(db), option.WithRedis(rdb), option.WithGIDHandler(gidHdl), option.WithMessageHandler(msgHdl), option.WithCaptcha(cap))
 	if err != nil {
 		t.Fatalf("service.New: %v", err)
 	}
 	return svc, db
 }
 
-// stubGIDService is a thirdcall.GIDService that issues sequential IDs starting at 1000.
-type stubGIDService struct{ next int64 }
-
-func (s *stubGIDService) NextID(_ context.Context) (int64, error) {
-	return atomic.AddInt64(&s.next, 1) + 999, nil
+// testGIDHandler builds a real in-process gid-service Handler for tests. The
+// raw Handler is what option.WithGIDHandler injects; user-service wraps it
+// internally. Snowflake only needs MachineID + StartTime.
+func testGIDHandler(t *testing.T) *gidservice.Handler {
+	t.Helper()
+	hdl, err := gidservice.NewModule(&gidconfig.Config{
+		Snowflake: &gidconfig.SnowflakeConfig{
+			MachineID: 1,
+			StartTime: time.Now().Add(-time.Hour),
+		},
+	})
+	if err != nil {
+		t.Fatalf("gid handler: %v", err)
+	}
+	return hdl
 }
 
-func stubGID() thirdcall.GIDService { return &stubGIDService{} }
-
-var _ thirdcall.GIDService = (*stubGIDService)(nil)
-
-// stubMessageService is a no-op thirdcall.MessageService for tests that exercise
-// flows which don't actually send messages (e.g. Login with no users).
-type stubMessageService struct{}
-
-func (stubMessageService) SendEmail(_ context.Context, _ *messagepb.SendEmailRequest) (*messagepb.SendResponse, error) {
-	return &messagepb.SendResponse{}, nil
+// testMessageHandler builds a real in-process message-service Handler for tests.
+// In module mode the Handler must be injected by the caller
+// (option.WithMessageHandler); this builds one sharing the test DB/Redis and gid.
+func testMessageHandler(t *testing.T, db *gorm.DB, rdb *redis.Client, gidHdl *gidservice.Handler) *messageservice.Handler {
+	t.Helper()
+	hdl, err := messageservice.NewModule(
+		&messageconfig.Config{
+			Email: &messageconfig.EmailConfig{IdempotencyTTL: "5m"},
+			SMS:   &messageconfig.SMSConfig{IdempotencyTTL: "5m"},
+		},
+		messageoption.WithDB(db),
+		messageoption.WithRedis(rdb),
+		messageoption.WithGIDHandler(gidHdl),
+	)
+	if err != nil {
+		t.Fatalf("message handler: %v", err)
+	}
+	return hdl
 }
-func (stubMessageService) SendSMS(_ context.Context, _ *messagepb.SendSMSRequest) (*messagepb.SendResponse, error) {
-	return &messagepb.SendResponse{}, nil
-}
-func (stubMessageService) Close() error { return nil }
-
-func stubMessage() thirdcall.MessageService { return stubMessageService{} }
-
-var _ thirdcall.MessageService = stubMessageService{}
 
 // TestService_Permission_CRUD exercises the full-stack Permission CRUD chain:
 // service.Service facade → rbac.Service → dal. Covers create/get/duplicate

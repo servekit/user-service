@@ -3,8 +3,9 @@ package handler
 import (
 	"fmt"
 
-	"github.com/servekit/go-common/dbx"
 	"gorm.io/gorm"
+
+	"github.com/servekit/go-common/dbx"
 
 	"github.com/servekit/user-service/internal/store/models"
 )
