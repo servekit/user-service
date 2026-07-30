@@ -202,6 +202,7 @@ func TestValidateReturnToURL_EmptyStringOK(t *testing.T) {
 func TestValidateOAuthConfig_RejectsBadAllowlistEntry(t *testing.T) {
 	cfg := &config.OAuthConfig{
 		GitHub: &config.OAuthGitHubConfig{
+			ClientID:            "github-client-id", // configured → must validate
 			RedirectURL:         "https://callback.example.com/cb",
 			AllowedRedirectURLs: []string{"javascript:alert(1)"},
 		},
@@ -218,12 +219,45 @@ func TestValidateOAuthConfig_RejectsBadAllowlistEntry(t *testing.T) {
 func TestValidateOAuthConfig_AcceptsCustomSchemeAllowlistEntry(t *testing.T) {
 	cfg := &config.OAuthConfig{
 		GitHub: &config.OAuthGitHubConfig{
+			ClientID:            "github-client-id", // configured → exercises allowlist validation
 			RedirectURL:         "https://callback.example.com/cb",
 			AllowedRedirectURLs: []string{"myapp://oauth/callback"},
 		},
 	}
 	errs, _ := validateOAuthConfig(cfg)
 	require.Empty(t, errs, "custom scheme allowlist entry should be accepted")
+}
+
+// TestValidateOAuthConfig_SkipsEmptyCredsProviders verifies that provider
+// blocks present in config but WITHOUT credentials (e.g. a placeholder
+// &OAuthGitHubConfig{}) are treated as not-configured and skipped — no
+// "redirect_url is required" error. Lets embedders boot with a minimal config
+// (nil or empty-creds providers) without a caller-side NormalizeConfig.
+func TestValidateOAuthConfig_SkipsEmptyCredsProviders(t *testing.T) {
+	cfg := &config.OAuthConfig{
+		GitHub: &config.OAuthGitHubConfig{}, // non-nil, empty creds → skipped
+		Google: &config.OAuthGoogleConfig{},
+		WeChat: &config.OAuthWeChatConfig{},
+		Apple:  &config.OAuthAppleConfig{},
+	}
+	errs, _ := validateOAuthConfig(cfg)
+	require.Empty(t, errs, "empty-creds provider blocks should be skipped, not validated")
+}
+
+// TestValidateOAuthConfig_FailFastOnConfiguredBadRedirect verifies that a
+// provider WITH credentials but an empty/malformed redirect_url still errors
+// at startup. Production fail-fast is preserved: misconfigured providers are
+// NOT silently skipped.
+func TestValidateOAuthConfig_FailFastOnConfiguredBadRedirect(t *testing.T) {
+	cfg := &config.OAuthConfig{
+		GitHub: &config.OAuthGitHubConfig{
+			ClientID:    "github-client-id", // configured → must validate
+			RedirectURL: "",                 // bad → must error
+		},
+	}
+	errs, _ := validateOAuthConfig(cfg)
+	require.NotEmpty(t, errs)
+	require.Contains(t, errs[0], "redirect_url is required")
 }
 
 // newTestService spins up a social.Service backed by miniredis for state

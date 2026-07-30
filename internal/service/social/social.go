@@ -799,9 +799,13 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 // field rather than surfacing as an opaque "redirect_uri mismatch" from the
 // OAuth provider at first login.
 //
-// Does NOT verify the URL matches what's registered at the provider —
-// user-service has no way to know that. Provider blocks left nil (provider not
-// configured) are skipped.
+// "Configured" means the provider block carries real credentials (see
+// (*OAuthXxxConfig).IsConfigured). A nil OR empty-creds provider block is
+// treated as not-configured and skipped — so an embedder booting with a
+// placeholder &OAuthGitHubConfig{} gets no error. A configured provider with a
+// bad/empty RedirectURL still errors (fail-fast preserved). Does NOT verify
+// the URL matches what's registered at the provider — user-service has no way
+// to know that.
 func validateOAuthConfig(cfg *config.OAuthConfig) (errs, warnings []string) {
 	if cfg == nil {
 		return nil, nil
@@ -813,16 +817,16 @@ func validateOAuthConfig(cfg *config.OAuthConfig) (errs, warnings []string) {
 		allowedRedirectURLs []string
 	}
 	configured := make([]prov, 0, 4)
-	if cfg.GitHub != nil {
+	if cfg.GitHub.IsConfigured() {
 		configured = append(configured, prov{"github", cfg.GitHub.RedirectURL, cfg.GitHub.AllowArbitraryRedirectURLs, cfg.GitHub.AllowedRedirectURLs})
 	}
-	if cfg.Google != nil {
+	if cfg.Google.IsConfigured() {
 		configured = append(configured, prov{"google", cfg.Google.RedirectURL, cfg.Google.AllowArbitraryRedirectURLs, cfg.Google.AllowedRedirectURLs})
 	}
-	if cfg.WeChat != nil {
+	if cfg.WeChat.IsConfigured() {
 		configured = append(configured, prov{"wechat", cfg.WeChat.RedirectURL, cfg.WeChat.AllowArbitraryRedirectURLs, cfg.WeChat.AllowedRedirectURLs})
 	}
-	if cfg.Apple != nil {
+	if cfg.Apple.IsConfigured() {
 		configured = append(configured, prov{"apple", cfg.Apple.RedirectURL, cfg.Apple.AllowArbitraryRedirectURLs, cfg.Apple.AllowedRedirectURLs})
 	}
 	for _, p := range configured {

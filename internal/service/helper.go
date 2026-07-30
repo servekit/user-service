@@ -257,3 +257,35 @@ func thirdPartyMessage(cfg *config.Config) *config.RemoteServiceConfig[*messagec
 	}
 	return cfg.ThirdParty.Message
 }
+
+// defaultSessionConfig returns the documented SessionConfig defaults (the
+// values SessionConfig declares via `default:` tags). Used when cfg.Session is
+// nil so session.NewManager doesn't nil-deref. Mirroring the struct tags here
+// keeps the fallback consistent with what configx.Load would have produced.
+func defaultSessionConfig() *config.SessionConfig {
+	return &config.SessionConfig{
+		TTL:                168 * time.Hour,
+		MaxSessions:        5,
+		KeyPrefix:          "user:session",
+		UserSessionsPrefix: "user:user_sessions",
+		SessionCodeTTL:     5 * time.Minute,
+	}
+}
+
+// resolveRBACConfig returns an RBACConfig safe to pass to cache.NewRBACCache:
+// never nil, and with a non-nil Cache sub-config so cache writes (which deref
+// cfg.Cache) don't panic. Builds a local value — does not mutate the caller's
+// cfg. The string prefixes are preserved as-is from cfg.
+func resolveRBACConfig(cfg *config.RBACConfig) *config.RBACConfig {
+	if cfg == nil {
+		return &config.RBACConfig{Cache: &config.RBACCacheConfig{}}
+	}
+	if cfg.Cache != nil {
+		return cfg
+	}
+	// Cache is nil: shallow-copy to avoid mutating the caller's config, then
+	// fill Cache on the copy.
+	resolved := *cfg
+	resolved.Cache = &config.RBACCacheConfig{}
+	return &resolved
+}
