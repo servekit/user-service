@@ -34,18 +34,58 @@ redis:
   password: ${USER_SERVICE_REDIS_PASSWORD}
   db: ${USER_SERVICE_REDIS_DB}
 
-# Captcha (verification codes). When omitted, user-service falls back to a
-# built-in default: 5 codes / 5 min per target, 3 wrong attempts, 5-min TTL,
-# for purposes register/login/verify_email/verify_phone/password_reset/bind.
-# Purpose keys are the numeric VerificationPurpose enum values as strings.
+# Captcha (verification codes) — OPTIONAL. When this block is omitted,
+# user-service falls back to a built-in default: prefix "captcha", 3 wrong
+# attempts, and 5 codes / 5 min per target across all six purposes, with the
+# shortest rate window (5 min) as the code TTL. Uncomment this block AND the
+# USER_SERVICE_CAPTCHA_* vars in .env.example together to override.
+#
+# Purpose keys are readable aliases mapped to the VerificationPurpose enum at
+# config load (register/login/verify_email/verify_phone/password_reset/bind);
+# raw numeric keys ("1".."6") are also accepted. Redis is the top-level shared
+# client (injected via option), so there is no redis: sub-block here.
+#
+# code_format is optional per purpose — omit it to use the 6-digit numeric
+# default (FormatDigit6). Fields: length (int); charset (digit|alpha|
+# alphanumeric); case (upper|lower|mixed, ignored when charset=digit). Shown
+# under register below; the other purposes omit it and inherit the default.
+#
+# global_rules (optional) applies on top of each purpose's own rate_rules.
 # captcha:
 #   prefix: ${USER_SERVICE_CAPTCHA_PREFIX}
 #   max_attempts: ${USER_SERVICE_CAPTCHA_MAX_ATTEMPTS}
+#   # global_rules:
+#   #   - window: 5m
+#   #     max: 100
 #   purposes:
-#     "1": # REGISTER
+#     register:        # VERIFICATION_PURPOSE_REGISTER
+#       code_format:
+#         length: 6
+#         charset: digit
+#         case: mixed
 #       rate_rules:
 #         - window: ${USER_SERVICE_CAPTCHA_REGISTER_WINDOW}
 #           max: ${USER_SERVICE_CAPTCHA_REGISTER_MAX}
+#     login:           # VERIFICATION_PURPOSE_LOGIN
+#       rate_rules:
+#         - window: ${USER_SERVICE_CAPTCHA_LOGIN_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_LOGIN_MAX}
+#     verify_email:    # VERIFICATION_PURPOSE_VERIFY_EMAIL
+#       rate_rules:
+#         - window: ${USER_SERVICE_CAPTCHA_VERIFY_EMAIL_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_VERIFY_EMAIL_MAX}
+#     verify_phone:    # VERIFICATION_PURPOSE_VERIFY_PHONE
+#       rate_rules:
+#         - window: ${USER_SERVICE_CAPTCHA_VERIFY_PHONE_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_VERIFY_PHONE_MAX}
+#     password_reset:  # VERIFICATION_PURPOSE_PASSWORD_RESET
+#       rate_rules:
+#         - window: ${USER_SERVICE_CAPTCHA_PASSWORD_RESET_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_PASSWORD_RESET_MAX}
+#     bind:            # VERIFICATION_PURPOSE_BIND
+#       rate_rules:
+#         - window: ${USER_SERVICE_CAPTCHA_BIND_WINDOW}
+#           max: ${USER_SERVICE_CAPTCHA_BIND_MAX}
 
 session:
   ttl: ${USER_SERVICE_SESSION_TTL}

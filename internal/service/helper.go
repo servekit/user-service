@@ -185,6 +185,7 @@ func resolveCaptcha(o *option.Options, cfg *config.Config, rdb *redis.Client) (*
 	if captchaCfg == nil {
 		captchaCfg = defaultCaptchaConfig()
 	}
+	normalizeCaptchaPurposes(captchaCfg)
 	return captcha.New(captchaCfg, captcha.WithRedisClient(rdb))
 }
 
@@ -216,6 +217,41 @@ func defaultCaptchaConfig() *captcha.Config {
 		MaxAttempts: 3,
 		Purposes:    purposes,
 	}
+}
+
+// captchaPurposeAliases maps operator-friendly purpose names (as written in
+// config.yaml) to the numeric keys purposeKey() emits at runtime. The captcha
+// library treats the key as opaque — it is only a Redis key component
+// (captcha:<purpose>:<channel>:<target>) — so purposeKey keeps emitting the
+// numeric form and the Redis key layout stays stable; this rewrite exists
+// solely to make the config readable. Mirrors the VerificationPurpose proto
+// enum (api/proto/user/v1/user.proto) and the numeric literals in
+// defaultCaptchaConfig above.
+var captchaPurposeAliases = map[string]string{
+	"register":       "1", // VERIFICATION_PURPOSE_REGISTER
+	"login":          "2", // VERIFICATION_PURPOSE_LOGIN
+	"verify_email":   "3", // VERIFICATION_PURPOSE_VERIFY_EMAIL
+	"verify_phone":   "4", // VERIFICATION_PURPOSE_VERIFY_PHONE
+	"password_reset": "5", // VERIFICATION_PURPOSE_PASSWORD_RESET
+	"bind":           "6", // VERIFICATION_PURPOSE_BIND
+}
+
+// normalizeCaptchaPurposes rewrites named purpose keys in cfg.Purposes to the
+// numeric form purposeKey() produces, in place. Already-numeric or unknown
+// keys pass through unchanged, so legacy numeric configs keep working and
+// custom keys are not silently dropped.
+func normalizeCaptchaPurposes(cfg *captcha.Config) {
+	if cfg == nil || len(cfg.Purposes) == 0 {
+		return
+	}
+	renamed := make(map[string]*captcha.PurposeConfig, len(cfg.Purposes))
+	for k, v := range cfg.Purposes {
+		if num, ok := captchaPurposeAliases[k]; ok {
+			k = num
+		}
+		renamed[k] = v
+	}
+	cfg.Purposes = renamed
 }
 
 // resolveLoginRateLimit returns the login attempt limiter config, falling
