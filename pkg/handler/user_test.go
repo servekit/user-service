@@ -34,7 +34,7 @@ func TestHandler_Login_NoUsers(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	db := dbx.SetupTestDB(t)
+	db := dbx.SetupTestDB(t, dbx.DriverPostgres)
 	if err := db.AutoMigrate(models.AllModels()...); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
@@ -82,7 +82,7 @@ func testConfig() *config.Config {
 			GRPC: ":0",
 			HTTP: ":0",
 		},
-		Database: &dbx.Config{Host: "unused"},
+		Database: &dbx.Config{Postgres: &dbx.PostgresConfig{Host: "unused"}},
 		Redis:    &redisx.Config{Addr: "unused"},
 		Session:  &config.SessionConfig{TTL: time.Hour, KeyPrefix: "test:", UserSessionsPrefix: "test:u:"},
 		RBAC:     &config.RBACConfig{},

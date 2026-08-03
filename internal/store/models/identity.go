@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -32,9 +35,9 @@ type UserIdentity struct {
 	UserID      int64     `gorm:"not null;index"`
 	Provider    int32     `gorm:"not null;uniqueIndex:uq_user_identity_provider"`          // pb.IdentityProvider (1=email, 2=phone, 3=github, 4=google, 5=wechat, 6=apple, 7=wechat_miniprogram)
 	ProviderUID string    `gorm:"size:256;not null;uniqueIndex:uq_user_identity_provider"` // email address / phone / OAuth UID
-	Credentials string    `gorm:"type:jsonb"`                                              // bcrypt hash / OAuth token
+	Credentials string    `gorm:"type:json"`                                               // bcrypt hash / OAuth token
 	Verified    bool      `gorm:"not null;default:false"`
-	OAuthData   OAuthData `gorm:"type:jsonb"`
+	OAuthData   OAuthData `gorm:"type:json"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
@@ -45,4 +48,43 @@ type OAuthData struct {
 	AccessToken string `json:"access_token,omitempty"`
 	SessionKey  string `json:"session_key,omitempty"`
 	UnionID     string `json:"unionid,omitempty"`
+}
+
+// Scan implements sql.Scanner. Handles []byte (postgres/mysql) and string
+// (sqlite/modernc) so OAuthData is portable across all supported dialects.
+func (o *OAuthData) Scan(value any) error {
+	if value == nil {
+		*o = OAuthData{}
+		return nil
+	}
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("models: cannot scan %T into OAuthData", value)
+	}
+	if len(bytes) == 0 {
+		*o = OAuthData{}
+		return nil
+	}
+	if err := json.Unmarshal(bytes, o); err != nil {
+		return fmt.Errorf("models: unmarshal OAuthData: %w", err)
+	}
+	return nil
+}
+
+// Value implements driver.Valuer. Non-OAuth identities (zero OAuthData) store
+// NULL; OAuth identities marshal their token data as JSON.
+func (o OAuthData) Value() (driver.Value, error) {
+	if o == (OAuthData{}) {
+		return nil, nil
+	}
+	b, err := json.Marshal(o)
+	if err != nil {
+		return nil, fmt.Errorf("models: marshal OAuthData: %w", err)
+	}
+	return b, nil
 }

@@ -21,15 +21,13 @@ func AddPermissionToGroup(ctx context.Context, tx *gorm.DB, groupID, permissionI
 
 // RemovePermissionFromGroup removes a permission from a permission group.
 //
-// Hard-deletes (Unscoped) rather than soft-deletes: PermissionGroupItemMapping is
-// a relationship join table with no audit value, and the unique index uq_pgi
-// (PermissionGroupID, PermissionID) includes soft-deleted rows in PostgreSQL,
-// so a soft-deleted (group, perm) pair would conflict on re-add within the
-// same transaction (e.g. UpdatePermissionGroup's full-replace when the new
-// set overlaps the old). gorm.G[T] does not expose Unscoped on its typed
-// chain, so we drop down to the standard *gorm.DB chain here.
+// The model has no DeletedAt (hard-delete by default): it's a relationship
+// join row with no audit value, and a stale row would conflict with the unique
+// index uq_pgi (PermissionGroupID, PermissionID) on re-add within the same
+// transaction (e.g. UpdatePermissionGroup's full-replace when the new set
+// overlaps the old).
 func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permissionID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
 		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
 		Delete(&models.PermissionGroupItemMapping{})
@@ -57,7 +55,7 @@ func ListPermissionGroupIDsByItemPermissionID(ctx context.Context, tx *gorm.DB, 
 // DeletePermissionGroupItemMappingsByPermissionID removes every group membership
 // of a permission (cascade cleanup when the permission is deleted). Hard-deletes.
 func DeletePermissionGroupItemMappingsByPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
 		Delete(&models.PermissionGroupItemMapping{})
 	if result.Error != nil {
@@ -69,7 +67,7 @@ func DeletePermissionGroupItemMappingsByPermissionID(ctx context.Context, tx *go
 // DeletePermissionGroupItemMappingsByGroupID removes every permission in a group
 // (cascade cleanup when the group is deleted). Hard-deletes.
 func DeletePermissionGroupItemMappingsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
 		Delete(&models.PermissionGroupItemMapping{})
 	if result.Error != nil {

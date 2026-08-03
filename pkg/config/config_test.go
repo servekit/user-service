@@ -14,12 +14,14 @@ server:
   grpc: ":19094"
   http: ":18084"
 database:
-  host: "127.0.0.1"
-  port: 5432
-  user: "test"
-  password: "test"
-  dbname: "test_db"
-  sslmode: "disable"
+  driver: postgres
+  postgres:
+    host: "127.0.0.1"
+    port: 5432
+    user: "test"
+    password: "test"
+    dbname: "test_db"
+    sslmode: "disable"
   max_open_conns: 25
   max_idle_conns: 10
   conn_max_lifetime: "5m"
@@ -64,8 +66,8 @@ log:
 	if cfg.Server.GRPC != ":19094" {
 		t.Errorf("Server.GRPC = %q, want :19094", cfg.Server.GRPC)
 	}
-	if cfg.Database.Port != 5432 {
-		t.Errorf("Database.Port = %d, want 5432", cfg.Database.Port)
+	if cfg.Database.Postgres.Port != 5432 {
+		t.Errorf("Database.Port = %d, want 5432", cfg.Database.Postgres.Port)
 	}
 	if cfg.Database.ConnMaxLifetime != 5*time.Minute {
 		t.Errorf("ConnMaxLifetime = %v, want 5m", cfg.Database.ConnMaxLifetime)
@@ -86,10 +88,12 @@ func TestLoadDefaults(t *testing.T) {
 	// populated automatically.
 	content := `
 database:
-  host: "127.0.0.1"
-  user: "test"
-  password: "test"
-  dbname: "test_db"
+  driver: postgres
+  postgres:
+    host: "127.0.0.1"
+    user: "test"
+    password: "test"
+    dbname: "test_db"
 redis:
   addr: "localhost:6379"
 `
@@ -184,8 +188,8 @@ func TestExampleConfigsAreLoadable(t *testing.T) {
 	if cfg.Server.GRPC != ":19094" {
 		t.Errorf("Server.GRPC = %q, want %q", cfg.Server.GRPC, ":19094")
 	}
-	if cfg.Database.Host != "127.0.0.1" {
-		t.Errorf("Database.Host = %q, want 127.0.0.1", cfg.Database.Host)
+	if cfg.Database.Postgres.Host != "127.0.0.1" {
+		t.Errorf("Database.Host = %q, want 127.0.0.1", cfg.Database.Postgres.Host)
 	}
 	if cfg.Session.TTL != 168*time.Hour {
 		t.Errorf("Session.TTL = %v, want 168h", cfg.Session.TTL)

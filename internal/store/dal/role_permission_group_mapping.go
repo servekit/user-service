@@ -19,12 +19,13 @@ func AssignRolePermissionGroupMapping(ctx context.Context, tx *gorm.DB, roleID, 
 	return nil
 }
 
-// RemoveRolePermissionGroupMapping removes a permission group from a role.
-// Hard-deletes (Unscoped): this is a relationship join row with no audit value,
-// and soft-delete would collide with the (role_id, permission_group_id) unique
-// index when UpdateRole re-adds a retained permission group.
+// RemoveRolePermissionGroupMapping removes a permission group from a role. The
+// model has no DeletedAt (hard-delete by default); it's a relationship join row
+// with no audit value, and a stale row would collide with the
+// (role_id, permission_group_id) unique index when UpdateRole re-adds a retained
+// permission group.
 func RemoveRolePermissionGroupMapping(ctx context.Context, tx *gorm.DB, roleID, permissionGroupID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.RolePermissionGroupMapping.RoleID.Eq(roleID)).
 		Where(generated.RolePermissionGroupMapping.PermissionGroupID.Eq(permissionGroupID)).
 		Delete(&models.RolePermissionGroupMapping{})
@@ -67,7 +68,7 @@ func ListRolePermissionGroupMappingsByPermissionGroupID(ctx context.Context, tx 
 // DeleteRolePermissionGroupMappingsByGroupID removes every role reference to a
 // permission group (cascade cleanup when the group is deleted). Hard-deletes.
 func DeleteRolePermissionGroupMappingsByGroupID(ctx context.Context, tx *gorm.DB, permissionGroupID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.RolePermissionGroupMapping.PermissionGroupID.Eq(permissionGroupID)).
 		Delete(&models.RolePermissionGroupMapping{})
 	if result.Error != nil {

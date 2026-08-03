@@ -19,12 +19,12 @@ func AssignRolePermissionMapping(ctx context.Context, tx *gorm.DB, roleID, permi
 	return nil
 }
 
-// RemoveRolePermissionMapping removes a permission from a role. Hard-deletes
-// (Unscoped): this is a relationship join row with no audit value, and soft-
-// delete would collide with the (role_id, permission_id) unique index when
-// UpdateRole re-adds a retained permission.
+// RemoveRolePermissionMapping removes a permission from a role. The model has
+// no DeletedAt (hard-delete by default); it's a relationship join row with no
+// audit value, and a stale row would collide with the (role_id, permission_id)
+// unique index when UpdateRole re-adds a retained permission.
 func RemoveRolePermissionMapping(ctx context.Context, tx *gorm.DB, roleID, permissionID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.RolePermissionMapping.RoleID.Eq(roleID)).
 		Where(generated.RolePermissionMapping.PermissionID.Eq(permissionID)).
 		Delete(&models.RolePermissionMapping{})
@@ -67,7 +67,7 @@ func ListRolePermissionMappingsByPermissionID(ctx context.Context, tx *gorm.DB, 
 // DeleteRolePermissionMappingsByPermissionID removes every role assignment of a
 // permission (cascade cleanup when the permission is deleted). Hard-deletes.
 func DeleteRolePermissionMappingsByPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) error {
-	result := tx.WithContext(ctx).Unscoped().
+	result := tx.WithContext(ctx).
 		Where(generated.RolePermissionMapping.PermissionID.Eq(permissionID)).
 		Delete(&models.RolePermissionMapping{})
 	if result.Error != nil {
