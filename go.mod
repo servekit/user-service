@@ -16,7 +16,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/servekit/gid-service v0.0.0-20260725050050-97fd4684b30d
 	github.com/servekit/go-common v0.0.0-20260803030322-51df8b4769d2
-	github.com/servekit/message-service v0.0.0-20260725052147-b53264f655ef
+	github.com/servekit/message-service v0.0.0-20260803030440-b25cce643135
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.52.0
 	golang.org/x/oauth2 v0.36.0
@@ -155,5 +155,3 @@ require (
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
 )
-
-replace github.com/servekit/message-service => ../message-service
