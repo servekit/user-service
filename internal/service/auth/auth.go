@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
 	messagepb "github.com/servekit/message-service/gen/message/v1"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
@@ -14,8 +15,6 @@ import (
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
-	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
-	message_service "github.com/servekit/user-service/internal/thirdcall/message_service"
 	"github.com/servekit/user-service/internal/utils/credentials"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
 	"github.com/servekit/user-service/pkg/xcodes"
@@ -36,8 +35,8 @@ type Service struct {
 	captcha      *captcha.Captcha
 	loginLimiter ratelimit.Limiter
 	codeLimiter  ratelimit.Limiter
-	gid          gid_service.GIDService
-	message      message_service.MessageService
+	gid          gidv1.GidServiceServer
+	message      messagepb.MessageServiceServer
 }
 
 // New creates a new auth Service. loginLimiter caps login attempts per
@@ -50,8 +49,8 @@ func New(
 	captchaSvc *captcha.Captcha,
 	loginLimiter ratelimit.Limiter,
 	codeLimiter ratelimit.Limiter,
-	gid gid_service.GIDService,
-	message message_service.MessageService,
+	gid gidv1.GidServiceServer,
+	message messagepb.MessageServiceServer,
 ) *Service {
 	return &Service{
 		db:           db,
@@ -110,7 +109,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := s.gid.NextID(ctx)
+	userID, err := common.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -356,7 +355,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := s.gid.NextID(ctx)
+	userID, err := common.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

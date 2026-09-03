@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"time"
 
+	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/service/common"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
-	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
 	"github.com/servekit/user-service/internal/utils/credentials"
 	"github.com/servekit/user-service/internal/utils/pagination"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
@@ -34,7 +34,7 @@ type SessionRevoker interface {
 // Service handles user management RPCs.
 type Service struct {
 	db      *gorm.DB
-	gid     gid_service.GIDService
+	gid     gidv1.GidServiceServer
 	revoker SessionRevoker
 	captcha *captcha.Captcha
 }
@@ -43,7 +43,7 @@ type Service struct {
 // is not required (e.g. admin tools that never disable users); DisableUser
 // falls back to a status-only update in that case. captcha is required for
 // ResetPassword; pass nil only in tests that don't exercise that RPC.
-func New(db *gorm.DB, gid gid_service.GIDService, revoker SessionRevoker, captchaSvc *captcha.Captcha) *Service {
+func New(db *gorm.DB, gid gidv1.GidServiceServer, revoker SessionRevoker, captchaSvc *captcha.Captcha) *Service {
 	return &Service{db: db, gid: gid, revoker: revoker, captcha: captchaSvc}
 }
 
@@ -260,7 +260,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
 
-	userID, err := s.gid.NextID(ctx)
+	userID, err := common.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

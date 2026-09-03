@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
@@ -19,7 +20,6 @@ import (
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
-	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/xcodes"
@@ -53,7 +53,7 @@ type Service struct {
 	db              *gorm.DB
 	sessionMgr      *userstore.Manager
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider
-	gid             gid_service.GIDService
+	gid             gidv1.GidServiceServer
 	rdb             *redis.Client
 	oauth           *config.OAuthConfig
 }
@@ -73,7 +73,7 @@ func New(
 	db *gorm.DB,
 	sessionMgr *userstore.Manager,
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider,
-	gid gid_service.GIDService,
+	gid gidv1.GidServiceServer,
 	rdb *redis.Client,
 	oauth *config.OAuthConfig,
 ) (*Service, []string, error) {
@@ -726,7 +726,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := s.gid.NextID(ctx)
+	userID, err := common.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -868,7 +868,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := s.gid.NextID(ctx)
+	userID, err := common.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

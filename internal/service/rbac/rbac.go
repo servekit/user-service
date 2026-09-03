@@ -1,10 +1,10 @@
 package rbac
 
 import (
+	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/cache"
 	"github.com/servekit/user-service/internal/store/models"
-	gid_service "github.com/servekit/user-service/internal/thirdcall/gid_service"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
@@ -14,14 +14,14 @@ import (
 type Service struct {
 	db    *gorm.DB
 	cache *cache.RBACCache
-	gid   gid_service.GIDService
+	gid   gidv1.GidServiceServer
 }
 
 // New creates a new rbac Service.
 func New(
 	db *gorm.DB,
 	cache *cache.RBACCache,
-	gid gid_service.GIDService,
+	gid gidv1.GidServiceServer,
 ) *Service {
 	return &Service{
 		db:    db,
