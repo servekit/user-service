@@ -7,10 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
-	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
 	gidconfig "github.com/servekit/gid-service/pkg/config"
-	messagev1 "github.com/servekit/message-service/gen/message/v1"
 	messageservice "github.com/servekit/message-service/pkg"
 	messageconfig "github.com/servekit/message-service/pkg/config"
 	messageoption "github.com/servekit/message-service/pkg/option"
@@ -82,14 +80,11 @@ func resolveRedis(o *option.Options, cfg *config.Config, mgr *lifecycle.Manager)
 
 // resolveGID returns the gid dependency (for this service's domains) and, in
 // module mode, the raw *gidservice.Handler (so an embedding downstream can
-// share it via its WithGIDHandler option). Both backends satisfy the generated
-// gidv1.GidServiceServer: module mode passes the *Handler directly, grpc mode
-// passes the server-shaped *Client — no wrapper needed on this side.
-// Lifecycle: grpc registers a stopper (closes the connection); module mode
-// registers the raw Handler with the Manager via mgr.Add (it owns the
-// Handler's Start/Stop); an injected Handler is borrowed (parent owns
-// lifecycle, nothing registered).
-func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Config], mgr *lifecycle.Manager) (gidv1.GidServiceServer, *gidservice.Handler, error) {
+// share it via its WithGIDHandler option). Construction delegates to
+// gidservice.Connect, which owns the mode switch and lifecycle registration;
+// only the adoption of a parent-injected Handler stays here — it reads this
+// service's own options and the parent owns that lifecycle.
+func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Config], mgr *lifecycle.Manager) (gidservice.Service, *gidservice.Handler, error) {
 	// Injected handler takes precedence (a parent shares its gid Handler),
 	// even if cfg is nil (no ThirdParty.GID configured).
 	if o.GIDHandler != nil {
@@ -98,39 +93,20 @@ func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Co
 	if cfg == nil {
 		return nil, nil, fmt.Errorf("third_party.gid: not configured")
 	}
-	switch cfg.Mode {
-	case "grpc":
-		gid, err := gidservice.NewClient(cfg.Target)
-		if err != nil {
-			return nil, nil, fmt.Errorf("init gid-service: %w", err)
-		}
-		mgr.AddStopper("gid-service", lifecycle.StopFunc(func() { _ = gid.Close() }))
-		return gid, nil, nil
-	case "module":
-		if cfg.Config == nil {
-			return nil, nil, fmt.Errorf("third_party.gid: module config required when no handler injected")
-		}
-		hdl, err := gidservice.NewModule(cfg.Config)
-		if err != nil {
-			return nil, nil, fmt.Errorf("init gid-service: %w", err)
-		}
-		mgr.Add("gid-service", hdl)
-		return hdl, hdl, nil
-	default:
-		return nil, nil, fmt.Errorf("third_party.gid: unknown mode %q", cfg.Mode)
-	}
+	return gidservice.Connect(gidservice.ConnectConfig{
+		Mode:   cfg.Mode,
+		Target: cfg.Target,
+		Config: cfg.Config,
+	}, mgr)
 }
 
-// resolveMessage returns the message dependency. Both backends satisfy the
-// generated messagev1.MessageServiceServer: module mode passes the
-// *messageservice.Handler directly (an injected one — option.WithMessageHandler
-// — when a parent embeds this service, parent owning lifecycle; otherwise one
-// built from cfg.Config and registered with the Manager via mgr.Add), grpc
-// mode passes the server-shaped *Client and registers a stopper (closes the
-// connection). gidRaw (non-nil in module mode) is shared into message-service
-// via WithGIDHandler so it reuses this service's gid Handler; when nil (grpc
-// mode) message-service resolves its own gid.
-func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messageconfig.Config], db *gorm.DB, rdb *redis.Client, gidRaw *gidservice.Handler, mgr *lifecycle.Manager) (messagev1.MessageServiceServer, error) {
+// resolveMessage returns the message dependency. Construction delegates to
+// messageservice.Connect; only the adoption of a parent-injected Handler
+// stays here (this service's own option, parent-owned lifecycle). gidRaw
+// (non-nil in module mode) is shared into message-service via
+// WithGIDHandler so it reuses this service's gid Handler; when nil (grpc
+// mode) message-service resolves its own gid from its own config.
+func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messageconfig.Config], db *gorm.DB, rdb *redis.Client, gidRaw *gidservice.Handler, mgr *lifecycle.Manager) (messageservice.Service, error) {
 	// Injected handler takes precedence (a parent shares its message Handler),
 	// even if cfg is nil (no ThirdParty.Message configured).
 	if o.MessageHandler != nil {
@@ -139,37 +115,20 @@ func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messagec
 	if cfg == nil {
 		return nil, fmt.Errorf("third_party.message: not configured")
 	}
-	switch cfg.Mode {
-	case "grpc":
-		if cfg.Target == "" {
-			return nil, fmt.Errorf("third_party.message.target is required when mode=grpc")
-		}
-		msg, err := messageservice.NewClient(cfg.Target)
-		if err != nil {
-			return nil, fmt.Errorf("init message-service: %w", err)
-		}
-		mgr.AddStopper("message-service", lifecycle.StopFunc(func() { _ = msg.Close() }))
-		return msg, nil
-	case "module":
-		if cfg.Config == nil {
-			return nil, fmt.Errorf("third_party.message: module config required when no handler injected")
-		}
-		opts := []messageoption.Option{
-			messageoption.WithDB(db),
-			messageoption.WithRedis(rdb),
-		}
-		if gidRaw != nil {
-			opts = append(opts, messageoption.WithGIDHandler(gidRaw)) // share this service's gid Handler
-		}
-		hdl, err := messageservice.NewModule(cfg.Config, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("init message-service: %w", err)
-		}
-		mgr.Add("message-service", hdl)
-		return hdl, nil
-	default:
-		return nil, fmt.Errorf("third_party.message: unknown mode %q", cfg.Mode)
+	opts := []messageoption.Option{
+		messageoption.WithDB(db),
+		messageoption.WithRedis(rdb),
 	}
+	if gidRaw != nil {
+		opts = append(opts, messageoption.WithGIDHandler(gidRaw)) // share this service's gid Handler
+	}
+	msg, _, err := messageservice.Connect(messageservice.ConnectConfig{
+		Mode:   cfg.Mode,
+		Target: cfg.Target,
+		Config: cfg.Config,
+		Opts:   opts,
+	}, mgr)
+	return msg, err
 }
 
 // resolveCaptcha returns the captcha service to use. If injected via option,
@@ -352,7 +311,7 @@ func resolveRBACConfig(cfg *config.RBACConfig) *config.RBACConfig {
 // built, not validated). Configured providers still get full validation via
 // socialsvc.New, so a configured-but-misconfigured provider (bad redirect_url)
 // still fails at startup.
-func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid gidv1.GidServiceServer, message messagev1.MessageServiceServer, captchaSvc *captcha.Captcha, miniRefreshErrorHook func(string, error)) (*Service, []string, error) {
+func newWithDeps(cfg *config.Config, db *gorm.DB, rdb *redis.Client, gid gidservice.Service, message messageservice.Service, captchaSvc *captcha.Captcha, miniRefreshErrorHook func(string, error)) (*Service, []string, error) {
 	// A fully-nil cfg (e.g. an embedder that left third_party.user.config empty)
 	// boots as an empty config — every sub-config then resolves to its defaults.
 	if cfg == nil {

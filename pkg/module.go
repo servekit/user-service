@@ -16,10 +16,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// Handler is the in-process entry point. Aliased to *handler.Handler so
+// external code references it as userservice.Handler, matching the other
+// services' pkg shape.
+type Handler = handler.Handler
+
 // NewModule creates a Handler from config. Returns *handler.Handler so callers
 // interact directly with the gRPC service interface.
 // Pass option.WithDB/WithRedis to inject external connections.
-func NewModule(cfg *config.Config, opts ...option.Option) (*handler.Handler, error) {
+func NewModule(cfg *config.Config, opts ...option.Option) (*Handler, error) {
 	// Warnings discarded: module mode has no logger; advisory only.
 	svc, _, err := service.New(cfg, opts...)
 	if err != nil {

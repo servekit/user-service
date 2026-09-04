@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
+	gidservice "github.com/servekit/gid-service/pkg"
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
@@ -53,7 +53,7 @@ type Service struct {
 	db              *gorm.DB
 	sessionMgr      *userstore.Manager
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider
-	gid             gidv1.GidServiceServer
+	gid             gidservice.Service
 	rdb             *redis.Client
 	oauth           *config.OAuthConfig
 }
@@ -73,7 +73,7 @@ func New(
 	db *gorm.DB,
 	sessionMgr *userstore.Manager,
 	socialProviders map[pb.IdentityProvider]identity.SocialProvider,
-	gid gidv1.GidServiceServer,
+	gid gidservice.Service,
 	rdb *redis.Client,
 	oauth *config.OAuthConfig,
 ) (*Service, []string, error) {

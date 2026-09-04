@@ -38,10 +38,10 @@ import (
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/option"
 
-	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
+	gidservice "github.com/servekit/gid-service/pkg"
 	"github.com/servekit/go-common/cronx"
 	"github.com/servekit/go-common/lifecycle"
-	messagev1 "github.com/servekit/message-service/gen/message/v1"
+	messageservice "github.com/servekit/message-service/pkg"
 )
 
 // Service holds user-service business state. Each domain field is a subpackage
@@ -52,8 +52,8 @@ type Service struct {
 
 	db         *gorm.DB
 	rdb        *redis.Client
-	gid        gidv1.GidServiceServer
-	message    messagev1.MessageServiceServer
+	gid        gidservice.Service
+	message    messageservice.Service
 	sessionMgr *session.Manager // technical component, separate from sessionsvc subpackage
 
 	// Domain subpackages

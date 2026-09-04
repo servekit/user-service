@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	gidv1 "github.com/servekit/gid-service/gen/gid/v1"
+	gidservice "github.com/servekit/gid-service/pkg"
 	messagepb "github.com/servekit/message-service/gen/message/v1"
+	messageservice "github.com/servekit/message-service/pkg"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/service/common"
@@ -35,8 +36,8 @@ type Service struct {
 	captcha      *captcha.Captcha
 	loginLimiter ratelimit.Limiter
 	codeLimiter  ratelimit.Limiter
-	gid          gidv1.GidServiceServer
-	message      messagepb.MessageServiceServer
+	gid          gidservice.Service
+	message      messageservice.Service
 }
 
 // New creates a new auth Service. loginLimiter caps login attempts per
@@ -49,8 +50,8 @@ func New(
 	captchaSvc *captcha.Captcha,
 	loginLimiter ratelimit.Limiter,
 	codeLimiter ratelimit.Limiter,
-	gid gidv1.GidServiceServer,
-	message messagepb.MessageServiceServer,
+	gid gidservice.Service,
+	message messageservice.Service,
 ) *Service {
 	return &Service{
 		db:           db,
