@@ -102,10 +102,10 @@ func resolveGID(o *option.Options, cfg *config.RemoteServiceConfig[*gidconfig.Co
 
 // resolveMessage returns the message dependency. Construction delegates to
 // messageservice.Connect; only the adoption of a parent-injected Handler
-// stays here (this service's own option, parent-owned lifecycle). gidRaw
-// (non-nil in module mode) is shared into message-service via
-// WithGIDHandler so it reuses this service's gid Handler; when nil (grpc
-// mode) message-service resolves its own gid from its own config.
+// stays here (this service's own option, parent-owned lifecycle). gidRaw is
+// passed unconditionally: WithGIDHandler(nil) is equivalent to not injecting
+// (nil field ≡ not injected), so when this service's gid runs in grpc mode
+// message-service simply resolves its own gid from its own config.
 func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messageconfig.Config], db *gorm.DB, rdb *redis.Client, gidRaw *gidservice.Handler, mgr *lifecycle.Manager) (messageservice.Service, error) {
 	// Injected handler takes precedence (a parent shares its message Handler),
 	// even if cfg is nil (no ThirdParty.Message configured).
@@ -115,18 +115,15 @@ func resolveMessage(o *option.Options, cfg *config.RemoteServiceConfig[*messagec
 	if cfg == nil {
 		return nil, fmt.Errorf("third_party.message: not configured")
 	}
-	opts := []messageoption.Option{
-		messageoption.WithDB(db),
-		messageoption.WithRedis(rdb),
-	}
-	if gidRaw != nil {
-		opts = append(opts, messageoption.WithGIDHandler(gidRaw)) // share this service's gid Handler
-	}
 	msg, _, err := messageservice.Connect(messageservice.ConnectConfig{
 		Mode:   cfg.Mode,
 		Target: cfg.Target,
 		Config: cfg.Config,
-		Opts:   opts,
+		Opts: []messageoption.Option{
+			messageoption.WithDB(db),
+			messageoption.WithRedis(rdb),
+			messageoption.WithGIDHandler(gidRaw), // nil = not injected; message resolves its own
+		},
 	}, mgr)
 	return msg, err
 }
