@@ -40,7 +40,9 @@ import (
 
 	gidservice "github.com/servekit/gid-service/pkg"
 	"github.com/servekit/go-common/cronx"
+	"github.com/servekit/go-common/dbx"
 	"github.com/servekit/go-common/lifecycle"
+	"github.com/servekit/go-common/redisx"
 	messageservice "github.com/servekit/message-service/pkg"
 )
 
@@ -79,12 +81,12 @@ func New(cfg *config.Config, opts ...option.Option) (*Service, []string, error) 
 
 	mgr := lifecycle.NewManager()
 
-	db, err := resolveDB(&o, cfg, mgr)
+	db, err := dbx.Connect(cfg.Database, o.DB, mgr)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	rdb, err := resolveRedis(&o, cfg, mgr)
+	rdb, err := redisx.Connect(cfg.Redis, o.RDB, mgr)
 	if err != nil {
 		if cerr := mgr.Stop(); cerr != nil {
 			err = errors.Join(err, fmt.Errorf("rollback: %w", cerr))

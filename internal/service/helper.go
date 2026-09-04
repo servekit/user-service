@@ -14,10 +14,8 @@ import (
 	messageoption "github.com/servekit/message-service/pkg/option"
 
 	"github.com/servekit/go-common/captcha"
-	"github.com/servekit/go-common/dbx"
 	"github.com/servekit/go-common/lifecycle"
 	"github.com/servekit/go-common/ratelimit"
-	"github.com/servekit/go-common/redisx"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/cache"
@@ -43,20 +41,6 @@ import (
 // Each resolve* returns a resource: an injected one (option.With…) is used
 // as-is with the caller owning its lifecycle; otherwise it is built from cfg
 // and registered with the lifecycle Manager, which starts and stops it.
-
-// resolveDB returns the DB to use: an injected one as-is (caller owns
-// lifecycle), otherwise built from cfg with a Stopper registered on mgr via
-// dbx.Connect.
-func resolveDB(o *option.Options, cfg *config.Config, mgr *lifecycle.Manager) (*gorm.DB, error) {
-	return dbx.Connect(cfg.Database, o.DB, mgr)
-}
-
-// resolveRedis returns the Redis client to use: an injected one as-is
-// (caller owns lifecycle), otherwise built from cfg with a Stopper
-// registered on mgr via redisx.Connect.
-func resolveRedis(o *option.Options, cfg *config.Config, mgr *lifecycle.Manager) (*redis.Client, error) {
-	return redisx.Connect(cfg.Redis, o.RDB, mgr)
-}
 
 // resolveGID returns the gid dependency (for this service's domains) and, in
 // module mode, the raw *gidservice.Handler (so an embedding downstream can

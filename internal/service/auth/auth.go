@@ -10,9 +10,9 @@ import (
 	gidservice "github.com/servekit/gid-service/pkg"
 	messagepb "github.com/servekit/message-service/gen/message/v1"
 	messageservice "github.com/servekit/message-service/pkg"
+	common "github.com/servekit/user-service/internal/service/common"
 
 	pb "github.com/servekit/user-service/gen/user/v1"
-	"github.com/servekit/user-service/internal/service/common"
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
@@ -110,7 +110,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := common.NextID(ctx, s.gid)
+	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -356,7 +356,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := common.NextID(ctx, s.gid)
+	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

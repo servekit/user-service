@@ -8,7 +8,7 @@ import (
 
 	gidservice "github.com/servekit/gid-service/pkg"
 	pb "github.com/servekit/user-service/gen/user/v1"
-	"github.com/servekit/user-service/internal/service/common"
+	common "github.com/servekit/user-service/internal/service/common"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/internal/utils/credentials"
@@ -260,7 +260,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
 
-	userID, err := common.NextID(ctx, s.gid)
+	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

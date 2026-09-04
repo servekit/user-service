@@ -16,7 +16,7 @@ import (
 	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
-	"github.com/servekit/user-service/internal/service/common"
+	common "github.com/servekit/user-service/internal/service/common"
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
@@ -726,7 +726,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := common.NextID(ctx, s.gid)
+	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
@@ -868,7 +868,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	sessionID := uuid.New().String()
 	var user *models.User
 
-	userID, err := common.NextID(ctx, s.gid)
+	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
