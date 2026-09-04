@@ -3,6 +3,7 @@ package userservice
 import (
 	"fmt"
 
+	"github.com/servekit/go-common/configx"
 	"github.com/servekit/go-common/lifecycle"
 
 	"github.com/servekit/user-service/pkg/config"
@@ -19,7 +20,7 @@ var moduleClaim lifecycle.ModuleClaim
 // shared upstream handlers via WithGIDHandler/WithMessageHandler. A nil
 // Config boots with defaults (nil-safe construction), matching NewModule.
 type ConnectConfig struct {
-	Mode   string          // "grpc" | "module" ("" = module)
+	Mode   configx.Mode    // "grpc" | "module" ("" = module)
 	Target string          // grpc dial target; required when Mode=grpc
 	Config *config.Config  // module-mode config; nil boots with defaults
 	Opts   []option.Option // module-mode resource injection
@@ -36,7 +37,7 @@ type ConnectConfig struct {
 // composition can share this instance downstream.
 func Connect(cfg ConnectConfig, mgr *lifecycle.Manager) (Service, *Handler, error) {
 	switch cfg.Mode {
-	case "grpc":
+	case configx.ModeGRPC:
 		if cfg.Target == "" {
 			return nil, nil, fmt.Errorf("user-service: target required when mode=grpc")
 		}
@@ -46,7 +47,7 @@ func Connect(cfg ConnectConfig, mgr *lifecycle.Manager) (Service, *Handler, erro
 		}
 		mgr.AddStopper("user-service", lifecycle.StopFunc(func() { _ = c.Close() }))
 		return c, nil, nil
-	case "module", "":
+	case configx.ModeModule, configx.ModeUnspecified:
 		// cfg.Config passes through unmodified — construction is nil-safe
 		// (a nil config boots with defaults; unconfigured providers are skipped).
 		if err := moduleClaim.Claim("user-service"); err != nil {
