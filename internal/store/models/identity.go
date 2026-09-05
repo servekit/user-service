@@ -35,7 +35,11 @@ type UserIdentity struct {
 	UserID      int64     `gorm:"not null;index"`
 	Provider    int32     `gorm:"not null;uniqueIndex:uq_user_identity_provider"`          // pb.IdentityProvider (1=email, 2=phone, 3=github, 4=google, 5=wechat, 6=apple, 7=wechat_miniprogram)
 	ProviderUID string    `gorm:"size:256;not null;uniqueIndex:uq_user_identity_provider"` // email address / phone / OAuth UID
-	Credentials string    `gorm:"type:json"`                                               // bcrypt hash / OAuth token
+	// Credentials holds a raw bcrypt password hash (or an OAuth token). It is
+	// plain text, NOT type:json — a json column rejects the raw `$2a$...` hash
+	// on PostgreSQL ("invalid input syntax for type json"), which broke every
+	// password-identity write. JSON values (OAuthData) live in their own field.
+	Credentials string `gorm:"size:512"` // bcrypt hash / OAuth token
 	Verified    bool      `gorm:"not null;default:false"`
 	OAuthData   OAuthData `gorm:"type:json"`
 	CreatedAt   time.Time

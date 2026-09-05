@@ -33,7 +33,12 @@ func GetIdentityByID(ctx context.Context, tx *gorm.DB, id int64) (*models.UserId
 	return &identity, nil
 }
 
-// GetIdentityByProviderUID returns an identity by provider and provider UID.
+// GetIdentityByProviderUID returns an identity by provider and provider UID,
+// or (nil, nil) when no row matches. Absent is a normal outcome here: every
+// caller branches on nil (register/bind duplicate checks proceed, login
+// resolves not-found to its own ErrIdentityNotFound / auto-register path).
+// Returning ErrIdentityNotFound from the dal instead short-circuits those
+// nil branches and breaks registration and code-login outright.
 func GetIdentityByProviderUID(ctx context.Context, tx *gorm.DB, provider int32, providerUID string) (*models.UserIdentity, error) {
 	identity, err := gorm.G[models.UserIdentity](tx).
 		Where(generated.UserIdentity.Provider.Eq(provider)).
@@ -41,7 +46,7 @@ func GetIdentityByProviderUID(ctx context.Context, tx *gorm.DB, provider int32, 
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, xcodes.ErrIdentityNotFound.New()
+			return nil, nil
 		}
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
