@@ -648,7 +648,7 @@ message RegisterRequest {
   Gender gender = 7 [(buf.validate.field).enum.defined_only = true];
   string timezone = 8 [(buf.validate.field).string = {max_len: 64}];
   string locale = 9 [(buf.validate.field).string = {max_len: 16}];
-  string region_code = 10 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 10 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 11 [(buf.validate.field).string.max_len = 20];
   // captcha_id returned by SendVerificationCode; required to verify the code.
   string captcha_id = 12 [(buf.validate.field).string.max_len = 128];
@@ -671,7 +671,7 @@ message LoginRequest {
   string password = 3 [(buf.validate.field).string.max_len = 128];
   string code = 4 [(buf.validate.field).string.max_len = 16];
   string email = 5 [(buf.validate.field).string.max_len = 256];
-  string region_code = 6 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 6 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 7 [(buf.validate.field).string.max_len = 20];
   // captcha_id returned by SendVerificationCode; required for code-based login methods.
   string captcha_id = 8 [(buf.validate.field).string.max_len = 128];
@@ -748,7 +748,7 @@ message User {
   string real_name = 4;
   string avatar_url = 5;
   string email = 6;
-  string region_code = 22 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 22 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 7;
   Gender gender = 8 [(buf.validate.field).enum.defined_only = true];
   string birthday = 9; // YYYY-MM-DD
@@ -790,7 +790,7 @@ message ResetPasswordRequest {
   string email = 1 [(buf.validate.field).string.max_len = 256];
   string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 16}];
   string new_password = 3 [(buf.validate.field).string = {min_len: 8, max_len: 128}];
-  string region_code = 4 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 4 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 5 [(buf.validate.field).string.max_len = 20];
 
   option (buf.validate.message).cel = {
@@ -831,7 +831,7 @@ message BindIdentityRequest {
   string email = 2 [(buf.validate.field).string.max_len = 256];
   string code = 3 [(buf.validate.field).string = {min_len: 1, max_len: 16}];
   string password = 4 [(buf.validate.field).string.max_len = 128];
-  string region_code = 6 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 6 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 7 [(buf.validate.field).string.max_len = 20];
 
   option (buf.validate.message).cel = {
@@ -871,7 +871,7 @@ message SendVerificationCodeRequest {
   string email = 1 [(buf.validate.field).string.max_len = 256];
   VerificationChannel channel = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
   VerificationPurpose purpose = 3 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
-  string region_code = 4 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 4 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 5 [(buf.validate.field).string.max_len = 20];
   // sender_id identifies the audit actor triggering this send (user ID,
   // service name, platform identifier, ...). Required: user-service is
@@ -1018,7 +1018,7 @@ message CreateUserRequest {
   string nickname = 3 [(buf.validate.field).string.max_len = 64];
   string real_name = 4 [(buf.validate.field).string.max_len = 64];
   string email = 5 [(buf.validate.field).string.max_len = 256];
-  string region_code = 11 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 11 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 6 [(buf.validate.field).string.max_len = 20];
   string password = 7 [(buf.validate.field).string = {min_len: 8, max_len: 128}];
   Gender gender = 8 [(buf.validate.field).enum.defined_only = true];
@@ -1057,7 +1057,7 @@ message ListUsersRequest {
   // Exact-match filters (empty/absent = no filter)
   repeated int64 user_ids = 16;
   string email = 17 [(buf.validate.field).string.max_len = 256];
-  string region_code = 23 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 23 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 18 [(buf.validate.field).string.max_len = 20];
   string username = 19 [(buf.validate.field).string.max_len = 64];
   UserType user_type = 20 [(buf.validate.field).enum.defined_only = true];
@@ -1095,7 +1095,7 @@ message ListUsersPagedRequest {
   google.protobuf.Timestamp last_login_at_end = 14;
   repeated int64 user_ids = 15;
   string email = 16 [(buf.validate.field).string.max_len = 256];
-  string region_code = 24 [(buf.validate.field).string.pattern = "^[A-Z]{2}$"];
+  string region_code = 24 [(buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE, (buf.validate.field).string.pattern = "^[A-Z]{2}$"];
   string phone = 17 [(buf.validate.field).string.max_len = 20];
   string username = 18 [(buf.validate.field).string.max_len = 64];
 
