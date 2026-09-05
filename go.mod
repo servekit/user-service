@@ -2,7 +2,6 @@ module github.com/servekit/user-service
 
 go 1.26.6
 
-
 require (
 	buf.build/go/protovalidate v1.2.0
 	github.com/alicebob/miniredis/v2 v2.38.0
@@ -76,7 +75,7 @@ require (
 	github.com/google/cel-go v0.28.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.202 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
