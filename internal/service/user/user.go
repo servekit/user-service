@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	pb "github.com/servekit/api/gen/go/user/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
-	pb "github.com/servekit/user-service/gen/user/v1"
 	common "github.com/servekit/user-service/internal/service/common"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"

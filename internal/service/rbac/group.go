@@ -3,8 +3,8 @@ package rbac
 import (
 	"context"
 
+	pb "github.com/servekit/api/gen/go/user/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
-	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/xcodes"

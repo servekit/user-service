@@ -1,9 +1,9 @@
-// Command user-service is the user-service gRPC + HTTP entry point, and
+// Command user-service is the user-service gRPC entry point, and
 // also hosts operational subcommands such as database migration.
 //
 // Usage:
 //
-//	user-service           # start the gRPC + HTTP server (default)
+//	user-service           # start the gRPC server (default)
 //	user-service serve     # same as above (explicit)
 //	user-service migrate   # apply GORM AutoMigrate, then exit
 package main
@@ -48,7 +48,7 @@ func main() {
 	}
 }
 
-// runServer loads config and starts the gRPC + HTTP server.
+// runServer loads config and starts the gRPC server.
 func runServer() error {
 	cfg, err := config.Load()
 	if err != nil {

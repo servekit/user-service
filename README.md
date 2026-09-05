@@ -4,7 +4,7 @@
 
 支持两种部署形态:
 
-- **独立 gRPC 服务** —— 监听 `:19094`(gRPC)+ `:18084`(grpc-gateway HTTP)
+- **独立 gRPC 服务** —— 监听 `:19094`(gRPC)。**纯 gRPC 服务**,不监听 HTTP;对外 HTTP 面由网关(当前为 testkit-service)提供
 - **Go module in-process** —— 在父进程内调用 `service.New(cfg)` 拿到 `*Service`,直接调方法,不经过网络
 
 ---
@@ -46,7 +46,7 @@
 
 | 命令 | 作用 |
 |---|---|
-| `./user-service` 或 `./user-service serve` | 启动 gRPC + HTTP 服务(默认) |
+| `./user-service` 或 `./user-service serve` | 启动 gRPC 服务(默认) |
 | `./user-service migrate` | 执行 GORM AutoMigrate 后退出 |
 | 其他 | 打印用法,exit 2 |
 
@@ -381,7 +381,7 @@ func redirectOAuthError(w http.ResponseWriter, r *http.Request, code string) {
 
 func main() {
     http.HandleFunc("/oauth/callback", oauthCallback)
-    log.Fatal(http.ListenAndServe(":18084", nil))
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
@@ -785,7 +785,7 @@ func main() {
         http.Redirect(w, r, "/dashboard", http.StatusFound) // ← 自己跳,不靠 return_to
     })
 
-    http.ListenAndServe(":18084", nil)
+    http.ListenAndServe(":8080", nil)
 }
 ```
 

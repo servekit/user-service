@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	messagepb "github.com/servekit/api/gen/go/messaging/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
-	messagepb "github.com/servekit/message-service/gen/message/v1"
 	messageservice "github.com/servekit/message-service/pkg"
 	common "github.com/servekit/user-service/internal/service/common"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"

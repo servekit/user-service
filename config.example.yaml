@@ -9,7 +9,6 @@
 
 server:
   grpc: ${USER_SERVICE_SERVER_GRPC}
-  http: ${USER_SERVICE_SERVER_HTTP}
 
 database:
   driver: ${USER_SERVICE_DB_DRIVER}        # postgres | mysql | sqlite(空默认 postgres)

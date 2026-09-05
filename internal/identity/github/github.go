@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	userv1 "github.com/servekit/user-service/gen/user/v1"
+	userv1 "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/utils/httpx"
 	"github.com/servekit/user-service/pkg/xcodes"

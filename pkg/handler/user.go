@@ -14,7 +14,8 @@ import (
 
 	"github.com/servekit/go-common/signalx"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	commonv1 "github.com/servekit/api/gen/go/common/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/service"
 )
 
@@ -41,7 +42,7 @@ func (h *Handler) Start() error { return h.svc.Start() }
 func (h *Handler) Stop() error { return h.svc.Stop() }
 
 // Ping is a health-check RPC.
-func (h *Handler) Ping(ctx context.Context, _ *emptypb.Empty) (*pb.Pong, error) {
+func (h *Handler) Ping(ctx context.Context, _ *emptypb.Empty) (*commonv1.Pong, error) {
 	return h.svc.Ping(ctx)
 }
 

@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	userv1 "github.com/servekit/user-service/gen/user/v1"
+	userv1 "github.com/servekit/api/gen/go/user/v1"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"

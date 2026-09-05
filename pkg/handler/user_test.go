@@ -18,7 +18,7 @@ import (
 	messageconfig "github.com/servekit/message-service/pkg/config"
 	messageoption "github.com/servekit/message-service/pkg/option"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/store/models"
 	userservice "github.com/servekit/user-service/pkg"
 	"github.com/servekit/user-service/pkg/config"
@@ -80,7 +80,6 @@ func testConfig() *config.Config {
 	return &config.Config{
 		Server: &config.ServerConfig{
 			GRPC: ":0",
-			HTTP: ":0",
 		},
 		Database: &dbx.Config{Postgres: &dbx.PostgresConfig{Host: "unused"}},
 		Redis:    &redisx.Config{Addr: "unused"},

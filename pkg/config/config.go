@@ -60,10 +60,9 @@ type RateLimitConfig struct {
 	Code  *ratelimit.Config // SendVerificationCode volume cap
 }
 
-// ServerConfig holds gRPC and HTTP gateway listener addresses.
+// ServerConfig holds the gRPC listener address.
 type ServerConfig struct {
 	GRPC string `default:":19094"`
-	HTTP string `default:":18084"`
 }
 
 // SessionConfig holds session management settings.

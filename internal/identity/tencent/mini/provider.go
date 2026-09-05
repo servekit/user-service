@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	userv1 "github.com/servekit/user-service/gen/user/v1"
+	userv1 "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
 	"github.com/servekit/user-service/pkg/xcodes"

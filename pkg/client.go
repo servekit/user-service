@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	commonv1 "github.com/servekit/api/gen/go/common/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -49,7 +50,7 @@ func (c *Client) Close() error {
 }
 
 // Ping delegates to the remote user-service.
-func (c *Client) Ping(ctx context.Context, in *emptypb.Empty) (*pb.Pong, error) {
+func (c *Client) Ping(ctx context.Context, in *emptypb.Empty) (*commonv1.Pong, error) {
 	return c.cli.Ping(ctx, in)
 }
 

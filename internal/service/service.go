@@ -27,7 +27,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	commonv1 "github.com/servekit/api/gen/go/common/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/jobs"
 	authsvc "github.com/servekit/user-service/internal/service/auth"
 	rbacsvc "github.com/servekit/user-service/internal/service/rbac"
@@ -144,9 +145,9 @@ func (s *Service) Start() error { return s.mgr.Start() }
 func (s *Service) Stop() error { return s.mgr.Stop() }
 
 // Ping is a health-check RPC. Returns only public, non-sensitive info.
-func (s *Service) Ping(ctx context.Context) (*pb.Pong, error) {
+func (s *Service) Ping(ctx context.Context) (*commonv1.Pong, error) {
 	v := version.Get()
-	return &pb.Pong{
+	return &commonv1.Pong{
 		Service:   "user-service",
 		Version:   v.Version,
 		GitCommit: v.GitCommit,

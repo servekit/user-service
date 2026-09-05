@@ -7,7 +7,7 @@ import (
 	"github.com/servekit/go-common/grpcx"
 	"github.com/servekit/go-common/signalx"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/service"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/handler"
@@ -32,7 +32,10 @@ func WithServiceOptions(opts ...option.Option) ServerOption {
 
 // Server wraps a gRPC server for user-service. Implements signalx.Service so it
 // can be passed to signalx.RunWithForceQuit: Start brings up the service then
-// the gRPC/gateway listeners; Stop tears them down in reverse.
+// the gRPC listener; Stop tears them down in reverse.
+//
+// user-service is gRPC-only: no HTTP gateway runs in-process. The
+// client-facing HTTP surface lives in the gateway (testkit today).
 type Server struct {
 	grpcSrv *grpcx.Server
 	svc     *service.Service
@@ -66,12 +69,9 @@ func NewServer(cfg *config.Config, opts ...ServerOption) (*Server, []string, err
 	}
 
 	grpcSrv := grpcx.New(
-		&grpcx.ServerConfig{
-			GRPCAddr:    cfg.Server.GRPC,
-			GatewayAddr: cfg.Server.HTTP,
-		},
+		&grpcx.ServerConfig{GRPCAddr: cfg.Server.GRPC},
 		func(s *grpc.Server) { pb.RegisterUserServiceServer(s, hdl) },
-		pb.RegisterUserServiceHandlerFromEndpoint,
+		nil, // no HTTP gateway — gRPC-only service
 		grpcx.ErrorInterceptor,
 		protovalidate_middleware.UnaryServerInterceptor(validator),
 	)

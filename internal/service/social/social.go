@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	pb "github.com/servekit/api/gen/go/user/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
-	pb "github.com/servekit/user-service/gen/user/v1"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
 	common "github.com/servekit/user-service/internal/service/common"

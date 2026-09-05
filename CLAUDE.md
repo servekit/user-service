@@ -33,9 +33,9 @@
 
 ### gRPC / Proto
 
-- Proto 定义在 `api/proto/user/user.proto`
-- 使用 `protoc` + `grpc-gateway` 生成代码到 `gen/` 目录；openapiv2 插件另从 `google.api.http` 注解派生 Swagger 2.0 文档到 `api/swagger/`（供前端/客户端消费），都由 `make proto` 产出
-- gRPC server 监听 `:9000`，grpc-gateway 监听 `:8080`
+- Proto 定义在契约仓库 `../api/user/v1/`（本仓库不持有 proto）
+- 生成代码来自 `github.com/servekit/api/gen/go`（`replace ../api/gen/go`）；改 proto 在 `../api` 仓库做并 `make gen`，本仓库 `go mod tidy` 后即可用
+- gRPC server 监听 `:19094`；不监听 HTTP（对外 HTTP 面由网关 testkit-service 提供）
 
 ### 错误处理
 
@@ -97,8 +97,6 @@ go test -race -coverprofile=coverage.out ./...
 
 ```
 user-service/
-├── api/proto/user/          # Protobuf 定义
-├── api/swagger/             # buf 生成的 Swagger/OpenAPI 文档（供前端/客户端消费）
 ├── cmd/server/              # 启动入口：serve（默认）+ migrate 子命令（单二进制）
 ├── gen/                     # protoc 生成代码
 ├── internal/

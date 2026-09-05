@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	pb "github.com/servekit/user-service/gen/user/v1"
+	pb "github.com/servekit/api/gen/go/user/v1"
 
 	"github.com/stretchr/testify/require"
 )
