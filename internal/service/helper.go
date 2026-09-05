@@ -104,6 +104,15 @@ func resolveCaptcha(o *option.Options, cfg *config.Config, rdb *redis.Client) (*
 		captchaCfg = defaultCaptchaConfig()
 	}
 	normalizeCaptchaPurposes(captchaCfg)
+	// A purpose entry without an explicit code format defaults to 6-digit
+	// codes. go-common's generator dereferences the format pointer
+	// unconditionally (formats[purpose] = pc.CodeFormat → charset(nil)), so a
+	// nil format would panic on the first Generate call.
+	for _, pc := range captchaCfg.Purposes {
+		if pc != nil && pc.CodeFormat == nil {
+			pc.CodeFormat = captcha.FormatDigit6
+		}
+	}
 	return captcha.New(captchaCfg, captcha.WithRedisClient(rdb))
 }
 
