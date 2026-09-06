@@ -86,6 +86,10 @@ func TestHashUserAgent(t *testing.T) {
 	if dal.HashUserAgent("curl/8.4.0") != h {
 		t.Fatal("hash must be deterministic")
 	}
+	// Pinned digest: md5("curl/8.4.0").
+	if got := dal.HashUserAgent("curl/8.4.0"); got != "9e35c119fa9d1b9b02b39361d4f10240" {
+		t.Fatalf("HashUserAgent(curl/8.4.0) = %q, want 9e35c119fa9d1b9b02b39361d4f10240", got)
+	}
 }
 
 func TestBackfillRegisterProfiles(t *testing.T) {

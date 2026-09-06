@@ -261,6 +261,7 @@ func applyUserFilters(q gorm.ChainInterface[models.UserUser], f UserFilterCore) 
 		// 2026-09-06): filter via subquery on its ip index instead of the
 		// dropped user column. Raw SQL because the typed API cannot express
 		// a cross-table IN.
+		// Invariant: the raw SQL bypasses GORM's soft-delete scope, so no delete path may ever be added to UserRegisterProfile without revisiting this filter.
 		q = q.Where("id IN (SELECT user_id FROM user_register_profiles WHERE ip = ?)", f.RegisterIP)
 	}
 	if f.LastLoginIP != "" {

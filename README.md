@@ -77,7 +77,9 @@ make migrate    # go run 执行迁移
 `register_ip` / `register_device` moved to `user_register_profiles`
 (2026-09-06). AutoMigrate never drops columns, so after the new binary is
 fully rolled out — and you are confident it will not be rolled back (old
-binaries SELECT these columns and error once dropped) — run:
+binaries fail on INSERT — their model still lists register_ip/register_device
+as columns to write — and on the old register_ip WHERE filter; SELECT * reads
+tolerate the drop) — run:
 
     ALTER TABLE user_users DROP COLUMN register_ip;
     ALTER TABLE user_users DROP COLUMN register_device;

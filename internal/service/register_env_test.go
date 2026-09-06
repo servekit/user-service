@@ -124,7 +124,7 @@ func TestService_CreateUser_EmptyRegisterEnv(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in -short mode (requires Docker)")
 	}
-	ctx := context.Background()
+	ctx := envCtx(context.Background())
 	svc, _ := newEnvTestService(t)
 
 	resp, err := svc.CreateUser(ctx, &pb.CreateUserRequest{
@@ -169,7 +169,7 @@ func TestService_GetUser_ExposesRegisterEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser: %v", err)
 	}
-	if got.GetRegisterIp() != "203.0.113.7" || got.GetRegisterAgent() == "" {
+	if got.GetRegisterIp() != "203.0.113.7" || got.GetRegisterAgent() != "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) Version/17.0 Mobile Safari/604.1" {
 		t.Fatalf("GetUser env = %q/%q, want captured register environment", got.GetRegisterIp(), got.GetRegisterAgent())
 	}
 	if got.GetRegisterDevice() != pb.DeviceType_DEVICE_TYPE_IOS {
