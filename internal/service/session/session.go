@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/store/dal"
+	"github.com/servekit/user-service/pkg/clientinfo"
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -237,6 +238,8 @@ func deviceTypeFor(data *Data) pb.DeviceType {
 		return pb.DeviceType_DEVICE_TYPE_IOS
 	case strings.Contains(data.OS, "Android"):
 		return pb.DeviceType_DEVICE_TYPE_ANDROID
+	case clientinfo.IsApiClient(data.UserAgent):
+		return pb.DeviceType_DEVICE_TYPE_API
 	case data.UserAgent != "":
 		return pb.DeviceType_DEVICE_TYPE_WEB
 	default:

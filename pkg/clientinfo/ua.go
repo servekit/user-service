@@ -49,9 +49,24 @@ func parseOS(ua string) string {
 }
 
 func parseBrowser(ua string) string {
-	// Order matters: embedded browsers carry the host engine's token too
-	// (WeChat UAs contain both Chrome and Safari).
+	// Order matters: app HTTP libraries (okhttp, Go-http-client, ...) carry
+	// no browser tokens but may embed none/weird ones — detect them first so
+	// the column reads 客户端 honestly for app logins.
 	switch {
+	case strings.Contains(ua, "okhttp/"):
+		return "okhttp " + versionAfter(ua, "okhttp/")
+	case strings.Contains(ua, "Go-http-client/"):
+		return "Go " + versionAfter(ua, "Go-http-client/")
+	case strings.Contains(ua, "python-requests/"):
+		return "python-requests " + versionAfter(ua, "python-requests/")
+	case strings.Contains(ua, "Apache-HttpClient/"):
+		return "Apache-HttpClient " + versionAfter(ua, "Apache-HttpClient/")
+	case strings.Contains(ua, "PostmanRuntime/"):
+		return "Postman " + versionAfter(ua, "PostmanRuntime/")
+	case strings.Contains(ua, "curl/"):
+		return "curl " + versionAfter(ua, "curl/")
+	case strings.Contains(ua, "Java/"):
+		return "Java " + versionAfter(ua, "Java/")
 	case strings.Contains(ua, "MicroMessenger/"):
 		return "WeChat " + versionAfter(ua, "MicroMessenger/")
 	case strings.Contains(ua, "Edg/"), strings.Contains(ua, "Edge/"):
@@ -102,6 +117,24 @@ func parseDevice(ua string) string {
 	default:
 		return ""
 	}
+}
+
+// apiClientTokens mark non-browser HTTP clients (native apps, scripts,
+// tools). Their UAs carry no OS either, so device classification reports
+// API rather than Web.
+var apiClientTokens = []string{
+	"okhttp/", "Go-http-client/", "python-requests/",
+	"Apache-HttpClient/", "PostmanRuntime/", "curl/", "Java/",
+}
+
+// IsApiClient reports whether the UA belongs to a non-browser HTTP client.
+func IsApiClient(ua string) bool {
+	for _, token := range apiClientTokens {
+		if strings.Contains(ua, token) {
+			return true
+		}
+	}
+	return false
 }
 
 // versionAfter returns the dot/underscore-joined version prefix that follows

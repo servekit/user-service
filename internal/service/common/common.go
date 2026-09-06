@@ -22,7 +22,7 @@ func LoginDeviceType(ci clientinfo.ClientInfo) int32 {
 		return int32(pb.DeviceType_DEVICE_TYPE_IOS)
 	case strings.Contains(ci.OS, "Android"):
 		return int32(pb.DeviceType_DEVICE_TYPE_ANDROID)
-	case ci.UserAgent == "":
+	case clientinfo.IsApiClient(ci.UserAgent), ci.UserAgent == "":
 		return int32(pb.DeviceType_DEVICE_TYPE_API)
 	default:
 		return int32(pb.DeviceType_DEVICE_TYPE_WEB)

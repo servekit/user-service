@@ -124,6 +124,31 @@ func TestParseUA(t *testing.T) {
 			wantBrowser: "gRPC 1.83.2",
 		},
 		{
+			name:        "okhttp (android app)",
+			ua:          "okhttp/4.12.0",
+			wantBrowser: "okhttp 4.12.0",
+		},
+		{
+			name:        "go http client",
+			ua:          "Go-http-client/2.0",
+			wantBrowser: "Go 2.0",
+		},
+		{
+			name:        "python requests",
+			ua:          "python-requests/2.31.0",
+			wantBrowser: "python-requests 2.31.0",
+		},
+		{
+			name:        "postman",
+			ua:          "PostmanRuntime/7.36.0",
+			wantBrowser: "Postman 7.36.0",
+		},
+		{
+			name:        "curl",
+			ua:          "curl/8.4.0",
+			wantBrowser: "curl 8.4.0",
+		},
+		{
 			name: "empty",
 			ua:   "",
 		},
@@ -137,4 +162,11 @@ func TestParseUA(t *testing.T) {
 			require.Equal(t, tt.wantDevice, device)
 		})
 	}
+}
+
+func TestIsApiClient(t *testing.T) {
+	require.True(t, clientinfo.IsApiClient("okhttp/4.12.0"))
+	require.True(t, clientinfo.IsApiClient("Go-http-client/2.0"))
+	require.False(t, clientinfo.IsApiClient("Mozilla/5.0 (Macintosh) Chrome/120.0.0.0"))
+	require.False(t, clientinfo.IsApiClient(""))
 }
