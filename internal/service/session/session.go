@@ -130,6 +130,7 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		beforeCreated = time.Unix(0, nano)
 	}
 	firstPage := beforeCreated.IsZero()
+	statusFilter := req.GetStatus()
 
 	sessionIDs, expiryScores, err := s.sessionMgr.ListByUserID(ctx, userID)
 	if err != nil {
@@ -141,7 +142,9 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	}
 
 	pbSessions := make([]*pb.Session, 0, len(sessionIDs)+int(pageSize))
-	if firstPage && len(sessionIDs) > 0 {
+	emitLive := firstPage && statusFilter != pb.SessionStatus_SESSION_STATUS_REVOKED &&
+		statusFilter != pb.SessionStatus_SESSION_STATUS_EXPIRED
+	if emitLive && len(sessionIDs) > 0 {
 		sessions, err := s.sessionMgr.GetMulti(ctx, sessionIDs)
 		if err != nil {
 			return nil, err
@@ -173,9 +176,22 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	}
 
 	// History from the PG tombstones, newest first, skipping rows still live.
-	// Fetch one extra row to detect whether another page exists.
+	// Fetch one extra row to detect whether another page exists. The ACTIVE
+	// filter wants live rows only — skip the tombstone query entirely.
+	if statusFilter == pb.SessionStatus_SESSION_STATUS_ACTIVE {
+		return &pb.ListSessionsResponse{Sessions: pbSessions}, nil
+	}
+	var revokedOnly *bool
+	switch statusFilter {
+	case pb.SessionStatus_SESSION_STATUS_REVOKED:
+		trueVal := true
+		revokedOnly = &trueVal
+	case pb.SessionStatus_SESSION_STATUS_EXPIRED:
+		falseVal := false
+		revokedOnly = &falseVal
+	}
 	fetch := int(pageSize) + len(live) + 1
-	rows, err := dal.ListSessionsByUserID(ctx, s.db, userID, fetch, beforeCreated)
+	rows, err := dal.ListSessionsByUserID(ctx, s.db, userID, fetch, beforeCreated, revokedOnly)
 	if err != nil {
 		return nil, err
 	}

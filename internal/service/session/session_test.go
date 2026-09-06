@@ -169,3 +169,54 @@ func TestListSessions_HistoryPaging(t *testing.T) {
 		t.Errorf("page2 next_cursor = %q, want empty", page2.GetNextCursor())
 	}
 }
+
+// TestListSessions_StatusFilter pins filter semantics: ACTIVE returns live
+// rows only (no history, no cursor); REVOKED returns only explicit-logout
+// tombstones (live rows never leak into a filtered history page).
+func TestListSessions_StatusFilter(t *testing.T) {
+	m, _ := newTestManager(t)
+	db := newTestDB(t)
+	svc := session.New(db, m)
+	ctx := context.Background()
+
+	if err := m.Create(ctx, "sess-live", &session.Data{UserID: 21, LoginAt: time.Now()}); err != nil {
+		t.Fatalf("Create live: %v", err)
+	}
+	revoked := time.Now().Add(-time.Minute)
+	seed := []models.UserSession{
+		{ID: "h-revoked", UserID: 21, CreatedAt: time.Now().Add(-time.Hour), RevokedAt: &revoked},
+		{ID: "h-lapsed", UserID: 21, CreatedAt: time.Now().Add(-2 * time.Hour)},
+	}
+	for i := range seed {
+		if err := db.Create(&seed[i]).Error; err != nil {
+			t.Fatalf("seed %s: %v", seed[i].ID, err)
+		}
+	}
+
+	active, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 21, Status: pb.SessionStatus_SESSION_STATUS_ACTIVE})
+	if err != nil {
+		t.Fatalf("ACTIVE: %v", err)
+	}
+	if len(active.GetSessions()) != 1 || active.GetSessions()[0].GetId() != "sess-live" {
+		t.Fatalf("ACTIVE = %+v, want live row only", active.GetSessions())
+	}
+	if active.GetNextCursor() != "" {
+		t.Errorf("ACTIVE next_cursor = %q, want empty", active.GetNextCursor())
+	}
+
+	rev, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 21, Status: pb.SessionStatus_SESSION_STATUS_REVOKED})
+	if err != nil {
+		t.Fatalf("REVOKED: %v", err)
+	}
+	if len(rev.GetSessions()) != 1 || rev.GetSessions()[0].GetId() != "h-revoked" {
+		t.Fatalf("REVOKED = %+v, want h-revoked only", rev.GetSessions())
+	}
+
+	exp, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 21, Status: pb.SessionStatus_SESSION_STATUS_EXPIRED})
+	if err != nil {
+		t.Fatalf("EXPIRED: %v", err)
+	}
+	if len(exp.GetSessions()) != 1 || exp.GetSessions()[0].GetId() != "h-lapsed" {
+		t.Fatalf("EXPIRED = %+v, want h-lapsed only", exp.GetSessions())
+	}
+}

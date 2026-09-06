@@ -40,10 +40,17 @@ func GetSessionByID(ctx context.Context, tx *gorm.DB, id string) (*models.UserSe
 // history strictly below that timestamp (cursor semantics). Includes live,
 // revoked, and lapsed rows — callers classify; limit should cover the live
 // set plus the history window.
-func ListSessionsByUserID(ctx context.Context, tx *gorm.DB, userID int64, limit int, beforeCreated time.Time) ([]*models.UserSession, error) {
+func ListSessionsByUserID(ctx context.Context, tx *gorm.DB, userID int64, limit int, beforeCreated time.Time, revokedOnly *bool) ([]*models.UserSession, error) {
 	q := gorm.G[models.UserSession](tx).
 		Where(generated.UserSession.UserID.Eq(userID)).
 		Order(generated.UserSession.CreatedAt.Desc())
+	if revokedOnly != nil {
+		if *revokedOnly {
+			q = q.Where(generated.UserSession.RevokedAt.IsNotNull())
+		} else {
+			q = q.Where(generated.UserSession.RevokedAt.IsNull())
+		}
+	}
 	if !beforeCreated.IsZero() {
 		q = q.Where(generated.UserSession.CreatedAt.Lt(beforeCreated))
 	}
