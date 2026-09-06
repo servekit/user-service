@@ -6,6 +6,7 @@
 //	user-service           # start the gRPC server (default)
 //	user-service serve     # same as above (explicit)
 //	user-service migrate   # apply GORM AutoMigrate, then exit
+//	user-service backfill-register-env # create missing register-profile rows, then exit
 package main
 
 import (
@@ -42,8 +43,13 @@ func main() {
 			slog.Error("migrate failed", "error", err)
 			os.Exit(1)
 		}
+	case "backfill-register-env":
+		if err := runBackfillRegisterEnv(); err != nil {
+			slog.Error("backfill-register-env failed", "error", err)
+			os.Exit(1)
+		}
 	default:
-		fmt.Fprintf(os.Stderr, "usage: %s [serve|migrate]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s [serve|migrate|backfill-register-env]\n", os.Args[0])
 		os.Exit(2)
 	}
 }

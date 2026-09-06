@@ -3,6 +3,7 @@ package dal_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -85,4 +86,76 @@ func TestHashUserAgent(t *testing.T) {
 	if dal.HashUserAgent("curl/8.4.0") != h {
 		t.Fatal("hash must be deterministic")
 	}
+}
+
+func TestBackfillRegisterProfiles(t *testing.T) {
+	db := newBackfillTestDB(t)
+	ctx := context.Background()
+
+	// User 1: register log exists (two rows — earliest wins) -> env backfilled.
+	// User 2: no register log -> empty-env row.
+	// User 3: already has a profile row -> untouched on rerun.
+	older := time.Now().Add(-48 * time.Hour)
+	uid1, uid2, uid3 := int64(1), int64(2), int64(3)
+	seed := []models.UserAuthLog{
+		{UserID: &uid1, Action: 2, Success: true, IP: "198.51.100.1",
+			UserAgent: "curl/8.4.0", CreatedAt: older, UpdatedAt: older},
+		{UserID: &uid1, Action: 4, Success: true, IP: "198.51.100.2",
+			UserAgent: "Mozilla/5.0", CreatedAt: older.Add(time.Hour), UpdatedAt: older.Add(time.Hour)},
+		{UserID: &uid1, Action: 1, Success: true, IP: "203.0.113.9", // login, ignored
+			UserAgent: "Mozilla/5.0", CreatedAt: older.Add(-time.Hour), UpdatedAt: older.Add(-time.Hour)},
+	}
+	for i := range seed {
+		if err := db.Create(&seed[i]).Error; err != nil {
+			t.Fatalf("seed auth log: %v", err)
+		}
+	}
+	users := []models.UserUser{{ID: uid1, Nickname: "a"}, {ID: uid2, Nickname: "b"}, {ID: uid3, Nickname: "c"}}
+	for i := range users {
+		if err := db.Create(&users[i]).Error; err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+	}
+	if err := dal.CreateRegisterProfile(ctx, db, &models.UserRegisterProfile{UserID: uid3, IP: "keep-me"}); err != nil {
+		t.Fatalf("seed profile: %v", err)
+	}
+
+	created, err := dal.BackfillRegisterProfiles(ctx, db)
+	if err != nil {
+		t.Fatalf("BackfillRegisterProfiles: %v", err)
+	}
+	if created != 2 {
+		t.Fatalf("created = %d, want 2 (users 1 and 2)", created)
+	}
+
+	p1, _ := dal.GetRegisterProfileByUserID(ctx, db, uid1)
+	if p1 == nil || p1.IP != "198.51.100.1" || p1.UserAgent != "curl/8.4.0" || p1.UserAgentHash == "" {
+		t.Fatalf("user1 profile = %+v, want earliest register log env", p1)
+	}
+	p2, _ := dal.GetRegisterProfileByUserID(ctx, db, uid2)
+	if p2 == nil || p2.IP != "" || p2.UserAgent != "" {
+		t.Fatalf("user2 profile = %+v, want empty-env row", p2)
+	}
+	p3, _ := dal.GetRegisterProfileByUserID(ctx, db, uid3)
+	if p3 == nil || p3.IP != "keep-me" {
+		t.Fatalf("user3 profile = %+v, want untouched", p3)
+	}
+
+	// Idempotent rerun.
+	created, err = dal.BackfillRegisterProfiles(ctx, db)
+	if err != nil || created != 0 {
+		t.Fatalf("rerun = (%d, %v), want (0, nil)", created, err)
+	}
+}
+
+func newBackfillTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.UserUser{}, &models.UserAuthLog{}, &models.UserRegisterProfile{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return db
 }

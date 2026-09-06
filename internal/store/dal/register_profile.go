@@ -50,3 +50,50 @@ func GetRegisterProfileByUserID(ctx context.Context, tx *gorm.DB, userID int64) 
 	}
 	return &profile, nil
 }
+
+// BackfillRegisterProfiles creates the missing 1:1 register-profile rows
+// for existing users, sourcing the environment from each user's earliest
+// successful register auth-log row (Action 2=register, 4=social_register,
+// see models.UserAuthLog). Users with no such log get an empty-env row.
+// Idempotent: existing rows are never touched. Returns rows created.
+func BackfillRegisterProfiles(ctx context.Context, db *gorm.DB) (int64, error) {
+	const batchSize = 500
+	var created int64
+	var lastID int64
+	for {
+		var ids []int64
+		if err := db.WithContext(ctx).
+			Table("user_users uu").
+			Select("uu.id").
+			Joins("LEFT JOIN user_register_profiles p ON p.user_id = uu.id").
+			Where("p.user_id IS NULL AND uu.id > ?", lastID).
+			Order("uu.id").
+			Limit(batchSize).
+			Pluck("uu.id", &ids).Error; err != nil {
+			return created, xcodes.ErrInternal.Wrap(err)
+		}
+		if len(ids) == 0 {
+			return created, nil
+		}
+		for _, uid := range ids {
+			lastID = uid
+			profile := &models.UserRegisterProfile{UserID: uid}
+			earliest, err := gorm.G[models.UserAuthLog](db).
+				Where(generated.UserAuthLog.UserID.Eq(uid)).
+				Where(generated.UserAuthLog.Action.In(2, 4)).
+				Where(generated.UserAuthLog.Success.Eq(true)).
+				Order(generated.UserAuthLog.ID.Asc()).
+				Take(ctx)
+			if err == nil {
+				profile.IP = earliest.IP
+				profile.UserAgent = earliest.UserAgent
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return created, xcodes.ErrInternal.Wrap(err)
+			}
+			if err := CreateRegisterProfile(ctx, db, profile); err != nil {
+				return created, err
+			}
+			created++
+		}
+	}
+}
