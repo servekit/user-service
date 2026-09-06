@@ -49,9 +49,11 @@ func TestListSessions_MergedView(t *testing.T) {
 	revoked := time.Now().Add(-30 * time.Minute)
 	seed := []models.UserSession{
 		{ID: "pg-revoked", UserID: 7, IP: "198.51.100.1", OS: "iOS 17.2", Browser: "Safari 17.0",
-			DeviceType: 2, CreatedAt: loginAt.Add(-2 * time.Hour), RevokedAt: &revoked},
+			DeviceType: 2, CreatedAt: loginAt.Add(-2 * time.Hour), RevokedAt: &revoked,
+			LoginMethod: "LOGIN_METHOD_PHONE_CODE", LoginTarget: "17000000000", Device: "iPhone"},
 		{ID: "pg-lapsed", UserID: 7, IP: "198.51.100.2", OS: "Android 14", Browser: "Chrome 119",
-			DeviceType: 3, CreatedAt: loginAt.Add(-3 * time.Hour)},
+			DeviceType: 3, CreatedAt: loginAt.Add(-3 * time.Hour),
+			LoginMethod: "IDENTITY_PROVIDER_GITHUB", LoginTarget: "octocat", Device: "Pixel 8"},
 		{ID: "sess-web", UserID: 7, CreatedAt: loginAt}, // live row also in PG — must be skipped
 	}
 	for i := range seed {
@@ -91,6 +93,11 @@ func TestListSessions_MergedView(t *testing.T) {
 	third := resp.GetSessions()[2]
 	if third.GetId() != "pg-lapsed" || third.GetStatus() != pb.SessionStatus_SESSION_STATUS_EXPIRED {
 		t.Errorf("third row = %s/%v, want pg-lapsed/EXPIRED", third.GetId(), third.GetStatus())
+	}
+	// History rows carry how they authenticated — from the PG columns.
+	if third.GetLoginMethod() != "IDENTITY_PROVIDER_GITHUB" || third.GetLoginTarget() != "octocat" || third.GetDevice() != "Pixel 8" {
+		t.Errorf("history login fields = %s/%s/%s, want github/octocat/Pixel 8",
+			third.GetLoginMethod(), third.GetLoginTarget(), third.GetDevice())
 	}
 	// …lapsed rows stay unset (no knowable moment).
 	if third.GetLastActiveAt() != nil {

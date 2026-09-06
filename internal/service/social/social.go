@@ -764,6 +764,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			LoginMethod: mpProvider.String(), LoginTarget: result.ProviderUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
@@ -908,6 +909,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			LoginMethod: providerID.String(), LoginTarget: result.ProviderUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
@@ -950,6 +952,7 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: userID,
+			LoginMethod: providerID.String(), LoginTarget: targetUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,

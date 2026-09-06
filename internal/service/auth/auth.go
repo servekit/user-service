@@ -170,6 +170,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			LoginMethod: sessData.LoginMethod, LoginTarget: sessData.LoginTarget, Device: sessData.Device,
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         sessData.OS, Browser: sessData.Browser,
@@ -346,6 +347,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			LoginMethod: sessData.LoginMethod, LoginTarget: sessData.LoginTarget, Device: sessData.Device,
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         sessData.OS, Browser: sessData.Browser,
@@ -465,6 +467,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			LoginMethod: sessData.LoginMethod, LoginTarget: sessData.LoginTarget, Device: sessData.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,

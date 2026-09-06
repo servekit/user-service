@@ -219,13 +219,16 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 			status = pb.SessionStatus_SESSION_STATUS_REVOKED
 		}
 		pbSess := &pb.Session{
-			Id:         r.ID,
-			Ip:         r.IP,
-			DeviceType: pb.DeviceType(r.DeviceType),
-			Os:         r.OS,
-			Browser:    r.Browser,
-			CreatedAt:  timestamppb.New(r.CreatedAt),
-			Status:     status,
+			Id:          r.ID,
+			Ip:          r.IP,
+			DeviceType:  pb.DeviceType(r.DeviceType),
+			Os:          r.OS,
+			Browser:     r.Browser,
+			CreatedAt:   timestamppb.New(r.CreatedAt),
+			Status:      status,
+			LoginMethod: r.LoginMethod,
+			LoginTarget: r.LoginTarget,
+			Device:      r.Device,
 		}
 		// A revoked session's last lifecycle event IS the logout — surface
 		// revoked_at as its final activity time. Lapsed/evicted rows have no
