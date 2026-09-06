@@ -34,10 +34,17 @@ func GetSessionByID(ctx context.Context, tx *gorm.DB, id string) (*models.UserSe
 }
 
 // ListSessionsByUserID returns all sessions for a user.
-func ListSessionsByUserID(ctx context.Context, tx *gorm.DB, userID int64) ([]*models.UserSession, error) {
-	results, err := gorm.G[models.UserSession](tx).
+// ListSessionsByUserID returns the user's PG session rows newest first,
+// bounded by limit (0 = uncapped). Includes live, revoked, and lapsed rows —
+// callers classify; limit should cover the live set plus the history window.
+func ListSessionsByUserID(ctx context.Context, tx *gorm.DB, userID int64, limit int) ([]*models.UserSession, error) {
+	q := gorm.G[models.UserSession](tx).
 		Where(generated.UserSession.UserID.Eq(userID)).
-		Find(ctx)
+		Order(generated.UserSession.CreatedAt.Desc())
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	results, err := q.Find(ctx)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}

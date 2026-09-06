@@ -106,6 +106,13 @@ func (s *Service) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessi
 // capture stay UNSPECIFIED). LastActiveAt derives from the per-user ZSET
 // expiry score (score - TTL = last validate-on-use), clamped to at least
 // LoginAt so freshly created sessions read sanely.
+//
+// Merged view: ACTIVE rows from Redis come first (as above); behind them up
+// to historyLimit REVOKED/EXPIRED rows from the PG tombstone table, newest
+// first. Historical last-active is unknowable (the column is gone) and stays
+// unset; revoked_at distinguishes explicit logout from lapsed/evicted.
+const historyLimit = 20
+
 func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest) (*pb.ListSessionsResponse, error) {
 	userID := req.GetUserId()
 
@@ -113,38 +120,70 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	if err != nil {
 		return nil, err
 	}
-	if len(sessionIDs) == 0 {
-		return &pb.ListSessionsResponse{}, nil
+	live := make(map[string]struct{}, len(sessionIDs))
+	for _, sid := range sessionIDs {
+		live[sid] = struct{}{}
 	}
 
-	sessions, err := s.sessionMgr.GetMulti(ctx, sessionIDs)
+	pbSessions := make([]*pb.Session, 0, len(sessionIDs)+historyLimit)
+	if len(sessionIDs) > 0 {
+		sessions, err := s.sessionMgr.GetMulti(ctx, sessionIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		ttlSecs := int64(s.sessionMgr.TTL() / time.Second)
+		for _, sid := range sessionIDs {
+			data, ok := sessions[sid]
+			if !ok {
+				continue // expired between ListByUserID and GetMulti
+			}
+			lastActive := data.LoginAt
+			if score, ok := expiryScores[sid]; ok {
+				if t := time.Unix(int64(score)-ttlSecs, 0); t.After(lastActive) {
+					lastActive = t
+				}
+			}
+			pbSessions = append(pbSessions, &pb.Session{
+				Id:           sid,
+				Ip:           data.LoginIP,
+				DeviceType:   deviceTypeFor(data),
+				Os:           data.OS,
+				Browser:      data.Browser,
+				CreatedAt:    timestamppb.New(data.LoginAt),
+				LastActiveAt: timestamppb.New(lastActive),
+				Status:       pb.SessionStatus_SESSION_STATUS_ACTIVE,
+			})
+		}
+	}
+
+	// History from the PG tombstones, newest first, skipping rows still live.
+	rows, err := dal.ListSessionsByUserID(ctx, s.db, userID, len(live)+historyLimit)
 	if err != nil {
 		return nil, err
 	}
-
-	ttlSecs := int64(s.sessionMgr.TTL() / time.Second)
-	pbSessions := make([]*pb.Session, 0, len(sessionIDs))
-	for _, sid := range sessionIDs {
-		data, ok := sessions[sid]
-		if !ok {
-			continue // expired between ListByUserID and GetMulti
+	appended := 0
+	for _, r := range rows {
+		if _, ok := live[r.ID]; ok {
+			continue
 		}
-		lastActive := data.LoginAt
-		if score, ok := expiryScores[sid]; ok {
-			if t := time.Unix(int64(score)-ttlSecs, 0); t.After(lastActive) {
-				lastActive = t
-			}
+		if appended >= historyLimit {
+			break
 		}
-		pbSess := &pb.Session{
-			Id:           sid,
-			Ip:           data.LoginIP,
-			DeviceType:   deviceTypeFor(data),
-			Os:           data.OS,
-			Browser:      data.Browser,
-			CreatedAt:    timestamppb.New(data.LoginAt),
-			LastActiveAt: timestamppb.New(lastActive),
+		status := pb.SessionStatus_SESSION_STATUS_EXPIRED
+		if r.RevokedAt != nil {
+			status = pb.SessionStatus_SESSION_STATUS_REVOKED
 		}
-		pbSessions = append(pbSessions, pbSess)
+		pbSessions = append(pbSessions, &pb.Session{
+			Id:         r.ID,
+			Ip:         r.IP,
+			DeviceType: pb.DeviceType(r.DeviceType),
+			Os:         r.OS,
+			Browser:    r.Browser,
+			CreatedAt:  timestamppb.New(r.CreatedAt),
+			Status:     status,
+		})
+		appended++
 	}
 
 	return &pb.ListSessionsResponse{Sessions: pbSessions}, nil
