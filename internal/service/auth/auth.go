@@ -182,10 +182,14 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
 			registerMethod = pb.LoginMethod_LOGIN_METHOD_PHONE_CODE
 		}
+		registerTarget := req.Email
+		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
+			registerTarget = req.Phone
+		}
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(req.Provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
-			Method: int32(registerMethod),
-			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(registerMethod), Target: registerTarget,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
@@ -220,6 +224,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 	if provider == pb.IdentityProvider_IDENTITY_PROVIDER_UNSPECIFIED && req.Method != pb.LoginMethod_LOGIN_METHOD_USERNAME_PASSWORD {
 		return nil, xcodes.ErrBadRequest.New("unsupported login method")
 	}
+	target := displayTarget(req.Method, lookupTarget)
 
 	// Resolve identity and user based on login method
 	var user *models.User
@@ -266,7 +271,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 					ci := clientinfo.FromCtx(ctx)
 					if logErr := dal.CreateAuthLog(ctx, s.db, &models.UserAuthLog{
 						Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER),
-						Success: false, FailReason: "wrong_code", Method: int32(req.Method),
+						Success: false, FailReason: "wrong_code", Method: int32(req.Method), Target: target,
 						IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 					}); logErr != nil {
 						// Audit log failure should not mask auth error
@@ -306,7 +311,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		failCI := clientinfo.FromCtx(ctx)
 		if logErr := dal.CreateAuthLog(ctx, s.db, &models.UserAuthLog{
 			UserID: &userID, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN),
-			Success: false, FailReason: failReason, Method: int32(req.Method),
+			Success: false, FailReason: failReason, Method: int32(req.Method), Target: target,
 			IP: failCI.IP, UserAgent: failCI.UserAgent, DeviceType: common.LoginDeviceType(failCI),
 		}); logErr != nil {
 			// Audit log failure should not mask auth error
@@ -349,8 +354,8 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		uid := user.ID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN), Success: true,
-			Method: int32(req.Method),
-			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(req.Method), Target: target,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
@@ -468,8 +473,8 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		uid := user.ID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
-			Method: int32(method),
-			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(method), Target: displayTarget(method, targetKey),
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
@@ -585,6 +590,18 @@ func methodToProvider(m pb.LoginMethod) pb.IdentityProvider {
 	default:
 		return pb.IdentityProvider_IDENTITY_PROVIDER_UNSPECIFIED
 	}
+}
+
+// displayTarget strips the "cc|phone" captcha-key form down to the bare
+// phone so audit rows read 17000000000, not 86|17000000000.
+func displayTarget(method pb.LoginMethod, lookupTarget string) string {
+	switch method {
+	case pb.LoginMethod_LOGIN_METHOD_PHONE_PASSWORD, pb.LoginMethod_LOGIN_METHOD_PHONE_CODE:
+		if _, phone := splitPhoneKey(lookupTarget); phone != "" {
+			return phone
+		}
+	}
+	return lookupTarget
 }
 
 // providerToChannel maps an IdentityProvider to a VerificationChannel.

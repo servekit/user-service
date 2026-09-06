@@ -573,7 +573,7 @@ func (s *Service) SocialLogin(ctx context.Context, req *pb.SocialLoginRequest) (
 		return nil, xcodes.ErrUserDisabled.New()
 	}
 
-	sessionID, err := s.createSession(ctx, user.ID, req.Provider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN)
+	sessionID, err := s.createSession(ctx, user.ID, req.Provider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN, ident.ProviderUID)
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +625,7 @@ func (s *Service) MiniProgramLogin(ctx context.Context, req *pb.MiniProgramLogin
 		return nil, xcodes.ErrUserDisabled.New()
 	}
 
-	sessionID, err := s.createSession(ctx, user.ID, mpProvider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN)
+	sessionID, err := s.createSession(ctx, user.ID, mpProvider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN, result.ProviderUID)
 	if err != nil {
 		return nil, err
 	}
@@ -712,7 +712,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 			}
 		}
 
-		sessionID, err := s.createSession(ctx, user.ID, mpProvider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN)
+		sessionID, err := s.createSession(ctx, user.ID, mpProvider, pb.LoginAction_LOGIN_ACTION_SOCIAL_LOGIN, result.ProviderUID)
 		if err != nil {
 			return nil, err
 		}
@@ -774,7 +774,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 
 		uid := user.ID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
-			UserID: &uid, Provider: int32(pb.IdentityProvider_IDENTITY_PROVIDER_PHONE), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
+			UserID: &uid, Provider: int32(pb.IdentityProvider_IDENTITY_PROVIDER_PHONE), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true, Target: result.ProviderUID,
 			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
@@ -943,7 +943,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 }
 
 // createSession creates a session for an existing user within a transaction.
-func (s *Service) createSession(ctx context.Context, userID int64, providerID pb.IdentityProvider, action pb.LoginAction) (string, error) {
+func (s *Service) createSession(ctx context.Context, userID int64, providerID pb.IdentityProvider, action pb.LoginAction, targetUID string) (string, error) {
 	sessionID := uuid.New().String()
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
@@ -960,7 +960,7 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 
 		uid := userID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
-			UserID: &uid, Provider: int32(providerID), Action: int32(action), Success: true,
+			UserID: &uid, Provider: int32(providerID), Action: int32(action), Success: true, Target: targetUID,
 			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err

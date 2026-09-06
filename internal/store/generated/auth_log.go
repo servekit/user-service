@@ -16,6 +16,7 @@ var UserAuthLog = struct {
 	Method     field.Number[int32]
 	Success    field.Bool
 	FailReason field.String
+	Target     field.String
 	IP         field.String
 	UserAgent  field.String
 	DeviceType field.Number[int32]
@@ -35,6 +36,7 @@ var UserAuthLog = struct {
 	Method:     field.Number[int32]{}.WithColumn("method"),
 	Success:    field.Bool{}.WithColumn("success"),
 	FailReason: field.String{}.WithColumn("fail_reason"),
+	Target:     field.String{}.WithColumn("target"),
 	IP:         field.String{}.WithColumn("ip"),
 	UserAgent:  field.String{}.WithColumn("user_agent"),
 	DeviceType: field.Number[int32]{}.WithColumn("device_type"),

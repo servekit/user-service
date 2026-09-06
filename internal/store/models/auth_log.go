@@ -16,6 +16,10 @@ type UserAuthLog struct {
 	Method     int32  // pb.LoginMethod (1=email+password, 2=phone+password, 3=phone code, 4=email code, 5=username+password); 0 = social / legacy rows
 	Success    bool   `gorm:"not null"`
 	FailReason string `gorm:"size:128"`
+	// The credential subject of the attempt (username/email/phone/oauth
+	// uid); its kind derives from Method + Provider. Present even when no
+	// user matched.
+	Target     string `gorm:"size:256"`
 	IP         string `gorm:"size:45"`
 	UserAgent  string `gorm:"size:512"`
 	DeviceType int32  // pb.DeviceType (1=web, 2=ios, 3=android, 4=api)

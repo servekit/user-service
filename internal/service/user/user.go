@@ -602,6 +602,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 			FailReason: l.FailReason,
 			Ip:         l.IP,
 			Method:     pb.LoginMethod(l.Method),
+			Target:     l.Target,
 			DeviceType: pb.DeviceType(l.DeviceType),
 			Os:         osName,
 			Browser:    browser,
