@@ -322,6 +322,11 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 			return err
 		}
 
+		// Empty-env register profile keeps the 1:1 invariant — the admin's
+		// own environment is NOT the user's registration environment.
+		if err := dal.CreateRegisterProfile(ctx, tx, &models.UserRegisterProfile{UserID: user.ID}); err != nil {
+			return err
+		}
 		return dal.CreateIdentity(ctx, tx, &models.UserIdentity{
 			UserID:      user.ID,
 			Provider:    int32(provider),

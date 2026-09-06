@@ -118,6 +118,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		ci := clientinfo.FromCtx(ctx)
 		// Duplicate check inside transaction to prevent race condition
 		existing, findErr := dal.GetIdentityByProviderUID(ctx, tx, int32(req.Provider), targetKey)
 		if findErr != nil {
@@ -160,8 +161,11 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 			return err
 		}
 
+		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+			return err
+		}
+
 		now := time.Now()
-		ci := clientinfo.FromCtx(ctx)
 		registerTargetVal := req.Email
 		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
 			registerTargetVal = req.Phone
@@ -431,6 +435,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		ci := clientinfo.FromCtx(ctx)
 		user = &models.UserUser{
 			Nickname:       "user",
 			Status:         int32(pb.UserStatus_USER_STATUS_ACTIVE),
@@ -455,8 +460,11 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 			return err
 		}
 
+		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+			return err
+		}
+
 		now := time.Now()
-		ci := clientinfo.FromCtx(ctx)
 		sessData := &userstore.Data{
 			UserID: user.ID, Method: int32(method), Provider: int32(provider), LoginAt: now, LoginTarget: displayTarget(method, targetKey),
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, Device: ci.Device,

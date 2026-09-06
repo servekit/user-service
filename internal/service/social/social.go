@@ -733,6 +733,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		ci := clientinfo.FromCtx(ctx)
 		user = &models.UserUser{
 			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
@@ -760,8 +761,11 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 			return err
 		}
 
+		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+			return err
+		}
+
 		now := time.Now()
-		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
 			Method: 0, Provider: int32(mpProvider), Target: result.ProviderUID, Device: ci.Device,
@@ -879,6 +883,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		ci := clientinfo.FromCtx(ctx)
 		user = &models.UserUser{
 			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
@@ -902,8 +907,11 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 			return err
 		}
 
+		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+			return err
+		}
+
 		now := time.Now()
-		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
 			Method: 0, Provider: int32(providerID), Target: result.ProviderUID, Device: ci.Device,

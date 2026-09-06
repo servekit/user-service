@@ -160,6 +160,11 @@ func (s *Service) Ping(ctx context.Context) (*commonv1.Pong, error) {
 	}, nil
 }
 
+// DB returns the underlying datastore handle. It exists for tests and ops
+// tooling that need direct read access; business logic belongs in the dal
+// layer, not in callers of this method.
+func (s *Service) DB() *gorm.DB { return s.db }
+
 // Resource resolve helpers (resolveDB/resolveRedis/resolveGID/resolveMessage/
 // resolveCaptcha + rate-limit defaults) and the subpackage wiring constructor
 // newWithDeps live in helper.go.
