@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
@@ -115,10 +116,15 @@ func (s *Service) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessi
 // effect change: this list view no longer refreshes session TTLs — only
 // validate-on-use paths (Get / GetSession / RefreshSession) do. See
 // Manager.GetMulti for the rationale.
+//
+// DeviceType derives from the stored OS/UserAgent (old sessions with no
+// capture stay UNSPECIFIED). LastActiveAt derives from the per-user ZSET
+// expiry score (score - TTL = last validate-on-use), clamped to at least
+// LoginAt so freshly created sessions read sanely.
 func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest) (*pb.ListSessionsResponse, error) {
 	userID := req.GetUserId()
 
-	sessionIDs, err := s.sessionMgr.ListByUserID(ctx, userID)
+	sessionIDs, expiryScores, err := s.sessionMgr.ListByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -131,23 +137,50 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		return nil, err
 	}
 
+	ttlSecs := int64(s.sessionMgr.TTL() / time.Second)
 	pbSessions := make([]*pb.Session, 0, len(sessionIDs))
 	for _, sid := range sessionIDs {
 		data, ok := sessions[sid]
 		if !ok {
 			continue // expired between ListByUserID and GetMulti
 		}
+		lastActive := data.LoginAt
+		if score, ok := expiryScores[sid]; ok {
+			if t := time.Unix(int64(score)-ttlSecs, 0); t.After(lastActive) {
+				lastActive = t
+			}
+		}
 		pbSess := &pb.Session{
-			Id:        sid,
-			Ip:        data.LoginIP,
-			Os:        data.OS,
-			Browser:   data.Browser,
-			CreatedAt: timestamppb.New(data.LoginAt),
+			Id:           sid,
+			Ip:           data.LoginIP,
+			DeviceType:   deviceTypeFor(data),
+			Os:           data.OS,
+			Browser:      data.Browser,
+			CreatedAt:    timestamppb.New(data.LoginAt),
+			LastActiveAt: timestamppb.New(lastActive),
 		}
 		pbSessions = append(pbSessions, pbSess)
 	}
 
 	return &pb.ListSessionsResponse{Sessions: pbSessions}, nil
+}
+
+// deviceTypeFor classifies a stored session for the list view. Read-side
+// semantics differ from login-time capture (common.LoginDeviceType): a
+// session with NO captured environment is a legacy row from before client
+// capture existed — UNSPECIFIED ("unknown") — not an API client, which only
+// login-time capture can conclude.
+func deviceTypeFor(data *Data) pb.DeviceType {
+	switch {
+	case strings.Contains(data.OS, "iOS"):
+		return pb.DeviceType_DEVICE_TYPE_IOS
+	case strings.Contains(data.OS, "Android"):
+		return pb.DeviceType_DEVICE_TYPE_ANDROID
+	case data.UserAgent != "":
+		return pb.DeviceType_DEVICE_TYPE_WEB
+	default:
+		return pb.DeviceType_DEVICE_TYPE_UNSPECIFIED
+	}
 }
 
 // RevokeSession revokes a specific session.

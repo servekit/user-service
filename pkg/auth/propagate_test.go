@@ -76,3 +76,10 @@ func TestTrustedIdentityUnary_MalformedUserID_Ignored(t *testing.T) {
 		})
 	require.NoError(t, err)
 }
+
+func TestWithSessionID_RoundTrip(t *testing.T) {
+	ctx := auth.WithSessionID(context.Background(), "sess-42")
+	sid, err := auth.SessionIDFromCtx(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "sess-42", sid)
+}

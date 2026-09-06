@@ -82,6 +82,12 @@ func SessionIDFromCtx(ctx context.Context) (string, error) {
 	return sid, nil
 }
 
+// WithSessionID attaches a session id to ctx — the inverse of
+// SessionIDFromCtx, primarily for tests wiring authenticated contexts.
+func WithSessionID(ctx context.Context, sid string) context.Context {
+	return context.WithValue(ctx, sessionIDKey, sid)
+}
+
 // identity is the verified caller identity produced by verifyBearer.
 type identity struct {
 	UserID    int64

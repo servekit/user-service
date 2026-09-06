@@ -218,20 +218,33 @@ func (m *Manager) GetMulti(ctx context.Context, sessionIDs []string) (map[string
 	return out, nil
 }
 
-// ListByUserID returns all active session IDs for a user.
-func (m *Manager) ListByUserID(ctx context.Context, userID int64) ([]string, error) {
+// ListByUserID returns all active session IDs for a user, each with its ZSET
+// expiry score (unix seconds). Create and the validate-on-use refresh both
+// set score = last-activity + TTL, so score - TTL yields the session's last
+// activity time without touching the session keys themselves.
+func (m *Manager) ListByUserID(ctx context.Context, userID int64) ([]string, map[string]float64, error) {
 	if err := m.cleanExpired(ctx, userID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	uKey := m.userSessionsKey(userID)
-	ids, err := m.client.ZRange(ctx, uKey, 0, -1).Result()
+	zs, err := m.client.ZRangeWithScores(ctx, uKey, 0, -1).Result()
 	if err != nil {
-		return nil, xcodes.ErrInternal.Wrap(err)
+		return nil, nil, xcodes.ErrInternal.Wrap(err)
 	}
-	if len(ids) == 0 {
-		return nil, nil
+	if len(zs) == 0 {
+		return nil, nil, nil
 	}
-	return ids, nil
+	ids := make([]string, 0, len(zs))
+	scores := make(map[string]float64, len(zs))
+	for _, z := range zs {
+		sid, ok := z.Member.(string)
+		if !ok {
+			continue
+		}
+		ids = append(ids, sid)
+		scores[sid] = z.Score
+	}
+	return ids, scores, nil
 }
 
 // --- internal helpers ---
