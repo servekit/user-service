@@ -271,9 +271,11 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		}
 		// Record failed login attempt
 		userID := ident.UserID
+		failCI := clientinfo.FromCtx(ctx)
 		if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
 			UserID: &userID, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN),
 			Success: false, FailReason: "wrong_password",
+			IP: failCI.IP, UserAgent: failCI.UserAgent, DeviceType: common.LoginDeviceType(failCI),
 		}); logErr != nil {
 			// Audit log failure should not mask auth error
 		}
