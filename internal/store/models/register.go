@@ -17,5 +17,6 @@ func AllModels() []any {
 		&UserRolePermissionMapping{},
 		&UserRolePermissionGroupMapping{},
 		&UserGroupRoleMapping{},
+		&UserRegisterProfile{},
 	}
 }
