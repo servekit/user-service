@@ -231,7 +231,7 @@ func (m *Manager) GetMulti(ctx context.Context, sessionIDs []string) (map[string
 // expiry score (unix seconds). Create and the validate-on-use refresh both
 // set score = last-activity + TTL, so score - TTL yields the session's last
 // activity time without touching the session keys themselves.
-func (m *Manager) ListByUserID(ctx context.Context, userID int64) ([]string, map[string]float64, error) {
+func (m *Manager) ListByUserID(ctx context.Context, userID int64) (sessionIDs []string, expiryScores map[string]float64, err error) {
 	if err := m.cleanExpired(ctx, userID); err != nil {
 		return nil, nil, err
 	}

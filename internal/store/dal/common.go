@@ -13,6 +13,8 @@ import "gorm.io/gorm"
 // including any NamingStrategy prefix configured on the db instance.
 func resolveTableName(db *gorm.DB, model interface{}) string {
 	stmt := &gorm.Statement{DB: db}
-	_ = stmt.Parse(model)
+	if err := stmt.Parse(model); err != nil {
+		return ""
+	}
 	return stmt.Table
 }

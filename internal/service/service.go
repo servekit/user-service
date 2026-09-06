@@ -40,11 +40,12 @@ import (
 	"github.com/servekit/user-service/pkg/option"
 
 	gidservice "github.com/servekit/gid-service/pkg"
+	messageservice "github.com/servekit/message-service/pkg"
+
 	"github.com/servekit/go-common/cronx"
 	"github.com/servekit/go-common/dbx"
 	"github.com/servekit/go-common/lifecycle"
 	"github.com/servekit/go-common/redisx"
-	messageservice "github.com/servekit/message-service/pkg"
 )
 
 // Service holds user-service business state. Each domain field is a subpackage
@@ -145,7 +146,7 @@ func (s *Service) Start() error { return s.mgr.Start() }
 func (s *Service) Stop() error { return s.mgr.Stop() }
 
 // Ping is a health-check RPC. Returns only public, non-sensitive info.
-func (s *Service) Ping(ctx context.Context) (*commonv1.Pong, error) {
+func (s *Service) Ping(_ context.Context) (*commonv1.Pong, error) {
 	v := version.Get()
 	return &commonv1.Pong{
 		Service:   "user-service",

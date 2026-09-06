@@ -1,9 +1,13 @@
+// Package auth implements credential and code-based authentication: register,
+// login (password / verification-code / auto-register on code login), logout,
+// and verification-code delivery.
 package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +15,7 @@ import (
 	messagepb "github.com/servekit/api/gen/go/messaging/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
 	messageservice "github.com/servekit/message-service/pkg"
-	common "github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/internal/service/convert"
 	"github.com/servekit/user-service/pkg/clientinfo"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
@@ -107,7 +111,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	if hashErr != nil {
 		return nil, xcodes.ErrInternal.Wrap(hashErr)
 	}
-	credentials := hash
+	cred := hash
 
 	sessionID := uuid.New().String()
 	var user *models.UserUser
@@ -129,8 +133,8 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		}
 
 		user = &models.UserUser{
-			Username: common.PtrIfNonEmpty(req.Username),
-			Nickname: common.FirstNonEmpty(req.Nickname, "user"),
+			Username: convert.PtrIfNonEmpty(req.Username),
+			Nickname: convert.FirstNonEmpty(req.Nickname, "user"),
 			Gender:   int32(req.Gender),
 			// Timezone/Locale are business-side inputs — no service default;
 			// callers that care (testkit's register form) fill them visibly.
@@ -154,14 +158,14 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 			UserID:      user.ID,
 			Provider:    int32(req.Provider),
 			ProviderUID: targetKey,
-			Credentials: credentials,
+			Credentials: cred,
 			Verified:    true,
 		}
 		if err := dal.CreateIdentity(ctx, tx, ident); err != nil {
 			return err
 		}
 
-		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+		if err := dal.CreateRegisterProfile(ctx, tx, convert.NewRegisterProfile(user.ID, ci)); err != nil {
 			return err
 		}
 
@@ -211,7 +215,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	}
 
 	return &pb.RegisterResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 	}, nil
 }
@@ -282,7 +286,9 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 						Success: false, FailReason: int32(pb.LoginFailReason_LOGIN_FAIL_REASON_WRONG_CODE), Method: int32(req.Method), Target: target,
 						IP: ci.IP, UserAgent: ci.UserAgent,
 					}); logErr != nil {
-						// Audit log failure should not mask auth error
+						// Audit-log failure must not mask the auth error, but
+						// never swallow it silently.
+						slog.Warn("auth-log write failed on wrong-code register attempt", "error", logErr)
 					}
 					return nil, verr
 				}
@@ -322,7 +328,9 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 			Success: false, FailReason: int32(failReason), Method: int32(req.Method), Target: target,
 			IP: failCI.IP, UserAgent: failCI.UserAgent,
 		}); logErr != nil {
-			// Audit log failure should not mask auth error
+			// Audit-log failure must not mask the auth error, but never
+			// swallow it silently.
+			slog.Warn("auth-log write failed on failed-login audit", "error", logErr)
 		}
 		return nil, err
 	}
@@ -375,7 +383,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 	}, nil
 }
@@ -460,7 +468,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 			return err
 		}
 
-		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+		if err := dal.CreateRegisterProfile(ctx, tx, convert.NewRegisterProfile(user.ID, ci)); err != nil {
 			return err
 		}
 
@@ -496,7 +504,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 		IsNew:     true,
 	}, nil
@@ -523,11 +531,12 @@ func (s *Service) SendVerificationCode(ctx context.Context, req *pb.SendVerifica
 		return nil, xcodes.ErrBadRequest.Wrap(err)
 	}
 	var key string
-	if req.Email != "" {
+	switch {
+	case req.Email != "":
 		key = req.Email
-	} else if req.RegionCode != "" && req.Phone != "" {
+	case req.RegionCode != "" && req.Phone != "":
 		key = phoneutil.CaptchaKey(phoneutil.NormalizeRegionCode(req.RegionCode), phoneutil.NormalizePhone(req.Phone))
-	} else {
+	default:
 		return nil, xcodes.ErrBadRequest.New("email or region_code+phone is required")
 	}
 	// Global cap on code-sending volume — catches attackers rotating targets
@@ -543,7 +552,7 @@ func (s *Service) SendVerificationCode(ctx context.Context, req *pb.SendVerifica
 	}
 	purpose := purposeKey(req.Purpose)
 	channel := channelKey(req.Channel)
-	captchaID, _, err := s.captcha.Generate(ctx, key, purpose, channel, captcha.WithSend(func(ctx context.Context, target, code, purpose, channel string) error {
+	captchaID, _, err := s.captcha.Generate(ctx, key, purpose, channel, captcha.WithSend(func(ctx context.Context, target, code, _, _ string) error {
 		return s.deliverCode(ctx, req, target, code)
 	}))
 	if err != nil {
@@ -681,14 +690,15 @@ func (s *Service) deliverCode(ctx context.Context, req *pb.SendVerificationCodeR
 		// reject raw content (regulatory), so they need template+params;
 		// international vendors split into raw-content and template-based —
 		// pass through whichever the caller set, vendor picks.
-		if regionCode == "CN" {
+		switch {
+		case regionCode == "CN":
 			paramKey := req.SmsCodeParamKey
 			if paramKey == "" {
 				paramKey = "code"
 			}
 			smsReq.TemplateId = req.SmsTemplateId
 			smsReq.TemplateParams = map[string]string{paramKey: code}
-		} else if req.SmsTemplateId != "" {
+		case req.SmsTemplateId != "":
 			// International with template (Byteplus / Tencent intl).
 			paramKey := req.SmsCodeParamKey
 			if paramKey == "" {
@@ -696,7 +706,7 @@ func (s *Service) deliverCode(ctx context.Context, req *pb.SendVerificationCodeR
 			}
 			smsReq.TemplateId = req.SmsTemplateId
 			smsReq.TemplateParams = map[string]string{paramKey: code}
-		} else {
+		default:
 			// International with raw content (Aliyun intl / Twilio).
 			// {code} substitution is the caller's convention; missing
 			// placeholder means the code is silently dropped.

@@ -7,6 +7,7 @@
 // the API-client classification, keeping the call sites in user-service
 // stable. Callers always keep the raw UserAgent string, so the parse rules
 // can be refined and old rows re-derived later.
+
 package clientinfo
 
 import (

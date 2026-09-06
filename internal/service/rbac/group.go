@@ -93,7 +93,7 @@ func (s *Service) AddGroupMember(ctx context.Context, req *pb.AddGroupMemberRequ
 	if err := dal.AddUserGroupMapping(ctx, s.db, ug); err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateUser(ctx, req.UserId); err != nil {
+	if err := s.permCache.InvalidateUser(ctx, req.UserId); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -104,7 +104,7 @@ func (s *Service) RemoveGroupMember(ctx context.Context, req *pb.RemoveGroupMemb
 	if err := dal.RemoveUserGroupMapping(ctx, s.db, req.UserId, req.GroupId); err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateUser(ctx, req.UserId); err != nil {
+	if err := s.permCache.InvalidateUser(ctx, req.UserId); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

@@ -1,13 +1,15 @@
 // gRPC-side session verification for standalone services that are not behind
 // an edge Middleware.
+
 package auth
 
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	"github.com/servekit/go-common/grpcx"
 	"github.com/servekit/go-common/xerr/xcodes"
-	"google.golang.org/grpc"
 )
 
 // VerifyInterceptor authenticates each non-public RPC by resolving the bearer

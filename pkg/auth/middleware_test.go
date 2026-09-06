@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/servekit/go-common/grpcx"
 	"github.com/stretchr/testify/require"
+
+	"github.com/servekit/go-common/grpcx"
 
 	"github.com/servekit/user-service/pkg/auth"
 )

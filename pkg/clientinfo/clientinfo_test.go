@@ -71,8 +71,8 @@ func TestFromCtx_TruncatesOversizedUAAndDevice(t *testing.T) {
 	// Postgres varchar ceilings: UA 512, device hint 128 — every
 	// environment-storing table shares them, so FromCtx must never hand
 	// out a longer value.
-	longUA := strings.Repeat("Mozilla/5.0 (X11; Linux) ", 40)  // 960 runes
-	longDevice := strings.Repeat("Pixel 8 Pro ", 20)           // 240 runes
+	longUA := strings.Repeat("Mozilla/5.0 (X11; Linux) ", 40) // 960 runes
+	longDevice := strings.Repeat("Pixel 8 Pro ", 20)          // 240 runes
 
 	ci := clientinfo.FromCtx(metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		"X-Client-Ua", longUA,
@@ -86,7 +86,7 @@ func TestFromCtx_TruncatesOversizedUAAndDevice(t *testing.T) {
 
 func TestFromCtx_TruncationKeepsValidUTF8(t *testing.T) {
 	multibyte := strings.Repeat("浏览器/1.0 ", 200) // 2200 runes, 3-byte runes
-	require.Greater(t, len(multibyte), 512)        // byte length far exceeds
+	require.Greater(t, len(multibyte), 512)      // byte length far exceeds
 
 	ci := clientinfo.FromCtx(metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		"X-Client-Ua", multibyte,

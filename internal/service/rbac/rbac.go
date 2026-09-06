@@ -1,3 +1,6 @@
+// Package rbac implements role-based access control: users hold roles
+// directly and via groups, roles bundle permissions and permission groups,
+// and the resolved permission sets are served through a per-user cache.
 package rbac
 
 import (
@@ -12,21 +15,21 @@ import (
 
 // Service handles RBAC management RPCs.
 type Service struct {
-	db    *gorm.DB
-	cache *cache.RBACCache
-	gid   gidservice.Service
+	db        *gorm.DB
+	permCache *cache.RBACCache
+	gid       gidservice.Service
 }
 
 // New creates a new rbac Service.
 func New(
 	db *gorm.DB,
-	cache *cache.RBACCache,
+	permCache *cache.RBACCache,
 	gid gidservice.Service,
 ) *Service {
 	return &Service{
-		db:    db,
-		cache: cache,
-		gid:   gid,
+		db:        db,
+		permCache: permCache,
+		gid:       gid,
 	}
 }
 

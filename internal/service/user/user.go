@@ -1,3 +1,5 @@
+// Package user implements the admin-facing user management surface:
+// create/read/list users, profile updates, and password administration.
 package user
 
 import (
@@ -8,7 +10,7 @@ import (
 
 	pb "github.com/servekit/api/gen/go/user/v1"
 	gidservice "github.com/servekit/gid-service/pkg"
-	common "github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/internal/service/convert"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/internal/utils/credentials"
@@ -54,7 +56,7 @@ func (s *Service) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*p
 	if err != nil {
 		return nil, err
 	}
-	return common.ConvertUser(user), nil
+	return convert.User(user), nil
 }
 
 // UpdateProfile updates the current user's profile.
@@ -64,7 +66,7 @@ func (s *Service) UpdateProfile(ctx context.Context, req *pb.UpdateProfileReques
 		return nil, err
 	}
 	if req.Username != "" {
-		user.Username = common.PtrIfNonEmpty(req.Username)
+		user.Username = convert.PtrIfNonEmpty(req.Username)
 	}
 	if req.Nickname != "" {
 		user.Nickname = req.Nickname
@@ -94,7 +96,7 @@ func (s *Service) UpdateProfile(ctx context.Context, req *pb.UpdateProfileReques
 	if err := dal.UpdateUser(ctx, s.db, user); err != nil {
 		return nil, err
 	}
-	return common.ConvertUser(user), nil
+	return convert.User(user), nil
 }
 
 // ChangePassword changes the user's password. When the account is in
@@ -185,11 +187,12 @@ func (s *Service) ResetPassword(ctx context.Context, req *pb.ResetPasswordReques
 		channel   pb.VerificationChannel
 		provider  pb.IdentityProvider
 	)
-	if req.Email != "" {
+	switch {
+	case req.Email != "":
 		targetKey = req.Email
 		channel = pb.VerificationChannel_VERIFICATION_CHANNEL_EMAIL
 		provider = pb.IdentityProvider_IDENTITY_PROVIDER_EMAIL
-	} else if req.RegionCode != "" && req.Phone != "" {
+	case req.RegionCode != "" && req.Phone != "":
 		rc := phoneutil.NormalizeRegionCode(req.RegionCode)
 		p := phoneutil.NormalizePhone(req.Phone)
 		if rc == "" || p == "" {
@@ -198,7 +201,7 @@ func (s *Service) ResetPassword(ctx context.Context, req *pb.ResetPasswordReques
 		targetKey = phoneutil.CaptchaKey(rc, p)
 		channel = pb.VerificationChannel_VERIFICATION_CHANNEL_SMS
 		provider = pb.IdentityProvider_IDENTITY_PROVIDER_PHONE
-	} else {
+	default:
 		return nil, xcodes.ErrBadRequest.New("email or region_code+phone is required")
 	}
 
@@ -302,8 +305,8 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 		}
 
 		user = &models.UserUser{
-			Username:       common.PtrIfNonEmpty(req.Username),
-			Nickname:       common.FirstNonEmpty(req.Nickname, req.Username, "user"),
+			Username:       convert.PtrIfNonEmpty(req.Username),
+			Nickname:       convert.FirstNonEmpty(req.Nickname, req.Username, "user"),
 			RealName:       req.RealName,
 			RegionCode:     phoneutil.NormalizeRegionCode(req.RegionCode),
 			Phone:          ptr.Ref(phoneutil.NormalizePhone(req.Phone)),
@@ -338,7 +341,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 		return nil, err
 	}
 
-	return &pb.CreateUserResponse{User: common.ConvertUser(user)}, nil
+	return &pb.CreateUserResponse{User: convert.User(user)}, nil
 }
 
 // GetUser returns a user by ID (admin). The registration environment
@@ -350,7 +353,7 @@ func (s *Service) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User
 	if err != nil {
 		return nil, err
 	}
-	out := common.ConvertUser(user)
+	out := convert.User(user)
 	profile, err := dal.GetRegisterProfileByUserID(ctx, s.db, user.ID)
 	if err != nil {
 		return nil, err
@@ -358,7 +361,7 @@ func (s *Service) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User
 	if profile != nil {
 		out.RegisterIp = profile.IP
 		out.RegisterAgent = profile.UserAgent
-		out.RegisterDevice = pb.DeviceType(common.DeviceTypeFromUA(profile.UserAgent))
+		out.RegisterDevice = pb.DeviceType(convert.DeviceTypeFromUA(profile.UserAgent))
 	}
 	return out, nil
 }
@@ -434,7 +437,7 @@ func (s *Service) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.
 
 	pbUsers := make([]*pb.User, len(users))
 	for i, u := range users {
-		pbUsers[i] = common.ConvertUser(u)
+		pbUsers[i] = convert.User(u)
 	}
 
 	var nextCursor string
@@ -507,7 +510,7 @@ func (s *Service) ListUsersPaged(ctx context.Context, req *pb.ListUsersPagedRequ
 
 	pbUsers := make([]*pb.User, len(users))
 	for i, u := range users {
-		pbUsers[i] = common.ConvertUser(u)
+		pbUsers[i] = convert.User(u)
 	}
 
 	var totalPages int32
@@ -545,7 +548,7 @@ func (s *Service) DisableUser(ctx context.Context, req *pb.DisableUserRequest) (
 			return nil, err
 		}
 	}
-	return common.ConvertUser(user), nil
+	return convert.User(user), nil
 }
 
 // GetLoginLogs returns login logs (admin).
@@ -619,7 +622,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 			Ip:         l.IP,
 			Method:     pb.LoginMethod(l.Method),
 			Target:     l.Target,
-			DeviceType: pb.DeviceType(common.DeviceTypeFromUA(l.UserAgent)),
+			DeviceType: pb.DeviceType(convert.DeviceTypeFromUA(l.UserAgent)),
 			Os:         osName,
 			Browser:    browser,
 			CreatedAt:  timestamppb.New(l.CreatedAt),

@@ -52,7 +52,7 @@ func (h *Handler) Ping(ctx context.Context, _ *emptypb.Empty) (*commonv1.Pong, e
 // callers; for the full contract see user.proto.
 
 // Register creates an email/phone user and opens a session.
-// Prerequisite: SendVerificationCode(purpose=REGISTER); pass its captcha_id back here.
+// Prerequisite — SendVerificationCode(purpose=REGISTER); pass its captcha_id back here.
 func (h *Handler) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	return h.svc.Register(ctx, req)
 }
@@ -82,13 +82,13 @@ func (h *Handler) SocialLogin(ctx context.Context, req *pb.SocialLoginRequest) (
 	return h.svc.SocialLogin(ctx, req)
 }
 
-// MiniProgramLogin: silent WeChat Mini Program login via wx.login() code.
+// MiniProgramLogin — silent WeChat Mini Program login via wx.login() code.
 // Use MiniProgramPhoneLogin afterward if phone number is needed.
 func (h *Handler) MiniProgramLogin(ctx context.Context, req *pb.MiniProgramLoginRequest) (*pb.LoginResponse, error) {
 	return h.svc.MiniProgramLogin(ctx, req)
 }
 
-// MiniProgramPhoneLogin: exchanges wx.login + getPhoneNumber codes for
+// MiniProgramPhoneLogin — exchanges wx.login + getPhoneNumber codes for
 // openid+phone. Links miniprogram identity to existing phone user, or
 // registers a new user with both identities.
 func (h *Handler) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgramPhoneLoginRequest) (*pb.LoginResponse, error) {
@@ -101,12 +101,12 @@ func (h *Handler) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*p
 	return h.svc.GetProfile(ctx, req)
 }
 
-// UpdateProfile: partial update of mutable profile fields (empty fields ignored).
+// UpdateProfile — partial update of mutable profile fields (empty fields ignored).
 func (h *Handler) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRequest) (*pb.User, error) {
 	return h.svc.UpdateProfile(ctx, req)
 }
 
-// ChangePassword: verifies old → sets new. Side effect: a successful call on
+// ChangePassword — verifies old → sets new. Side effect: a successful call on
 // a PENDING_REVIEW user (created via CreateUser) activates the account.
 func (h *Handler) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*emptypb.Empty, error) {
 	return h.svc.ChangePassword(ctx, req)
@@ -123,20 +123,20 @@ func (h *Handler) ListIdentities(ctx context.Context, req *pb.ListIdentitiesRequ
 	return h.svc.ListIdentities(ctx, req)
 }
 
-// BindIdentity: link a new email/phone identity. Requires SendVerificationCode
+// BindIdentity — link a new email/phone identity. Requires SendVerificationCode
 // (purpose=BIND).
 func (h *Handler) BindIdentity(ctx context.Context, req *pb.BindIdentityRequest) (*pb.Identity, error) {
 	return h.svc.BindIdentity(ctx, req)
 }
 
-// BindOAuthIdentity: link an OAuth provider identity (GitHub/Google/WeChat
+// BindOAuthIdentity — link an OAuth provider identity (GitHub/Google/WeChat
 // web/Apple) to an already-authenticated user. Caller is expected to have
 // run GetOAuthURL first and now possess code+state from the OAuth callback.
 func (h *Handler) BindOAuthIdentity(ctx context.Context, req *pb.BindOAuthIdentityRequest) (*pb.BindOAuthIdentityResponse, error) {
 	return h.svc.BindOAuthIdentity(ctx, req)
 }
 
-// UnbindIdentity: remove one of the caller's own identities (requires
+// UnbindIdentity — remove one of the caller's own identities (requires
 // confirmation code and user_id ownership check).
 func (h *Handler) UnbindIdentity(ctx context.Context, req *pb.UnbindIdentityRequest) (*emptypb.Empty, error) {
 	return h.svc.UnbindIdentity(ctx, req)
@@ -154,33 +154,33 @@ func (h *Handler) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	return h.svc.ListSessions(ctx, req)
 }
 
-// RevokeSession: logout a specific session by ID. Authorization is caller's
+// RevokeSession — logout a specific session by ID. Authorization is caller's
 // responsibility.
 func (h *Handler) RevokeSession(ctx context.Context, req *pb.RevokeSessionRequest) (*emptypb.Empty, error) {
 	return h.svc.RevokeSession(ctx, req)
 }
 
-// RevokeAllSessions: logout everywhere. Recommended after ChangePassword,
+// RevokeAllSessions — logout everywhere. Recommended after ChangePassword,
 // ResetPassword, or DisableUser.
 func (h *Handler) RevokeAllSessions(ctx context.Context, req *pb.RevokeAllSessionsRequest) (*emptypb.Empty, error) {
 	return h.svc.RevokeAllSessions(ctx, req)
 }
 
-// GetSession: resolves session_id → user_id + metadata. Primary BFF entry
+// GetSession — resolves session_id → user_id + metadata. Primary BFF entry
 // point for cookie-based auth: read session_id from cookie, call GetSession,
 // inject the returned user_id into downstream RPCs. Read-only against Redis.
 func (h *Handler) GetSession(ctx context.Context, req *pb.GetSessionRequest) (*pb.GetSessionResponse, error) {
 	return h.svc.GetSession(ctx, req)
 }
 
-// IssueSessionCode: mints a one-time short code referencing session_id.
+// IssueSessionCode — mints a one-time short code referencing session_id.
 // Called by the OAuth callback service after SocialLogin; the code is
 // passed via URL query to the business side instead of leaking session_id.
 func (h *Handler) IssueSessionCode(ctx context.Context, req *pb.IssueSessionCodeRequest) (*pb.IssueSessionCodeResponse, error) {
 	return h.svc.IssueSessionCode(ctx, req)
 }
 
-// ExchangeSessionCode: trades a one-time short code for session_id +
+// ExchangeSessionCode — trades a one-time short code for session_id +
 // user_id. Called once by the business side's return_to handler, which
 // then sets its own domain cookie. Replay returns ErrSessionInvalid.
 func (h *Handler) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessionCodeRequest) (*pb.ExchangeSessionCodeResponse, error) {
@@ -198,30 +198,30 @@ func (h *Handler) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 	return h.svc.CreateUser(ctx, req)
 }
 
-// ListUsers: cursor-paginated user list with rich filters. Prefer over
+// ListUsers — cursor-paginated user list with rich filters. Prefer over
 // ListUsersPaged for stable iteration under concurrent writes.
 func (h *Handler) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResponse, error) {
 	return h.svc.ListUsers(ctx, req)
 }
 
-// ListUsersPaged: offset-paginated list with optional total count, for admin
+// ListUsersPaged — offset-paginated list with optional total count, for admin
 // UIs that need page numbers. Set count=false on follow-up loads.
 func (h *Handler) ListUsersPaged(ctx context.Context, req *pb.ListUsersPagedRequest) (*pb.ListUsersPagedResponse, error) {
 	return h.svc.ListUsersPaged(ctx, req)
 }
 
-// DisableUser: toggles DISABLED/ACTIVE. Does NOT revoke sessions — call
+// DisableUser — toggles DISABLED/ACTIVE. Does NOT revoke sessions — call
 // RevokeAllSessions separately for immediate logout.
 func (h *Handler) DisableUser(ctx context.Context, req *pb.DisableUserRequest) (*pb.User, error) {
 	return h.svc.DisableUser(ctx, req)
 }
 
-// GetLoginLogs: cursor-paginated login audit logs.
+// GetLoginLogs — cursor-paginated login audit logs.
 func (h *Handler) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest) (*pb.GetLoginLogsResponse, error) {
 	return h.svc.GetLoginLogs(ctx, req)
 }
 
-// CreateGroup: creates an organizational unit. Follow up with AddGroupMember
+// CreateGroup — creates an organizational unit. Follow up with AddGroupMember
 // and AddGroupRole so members inherit the group's permissions.
 func (h *Handler) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.Group, error) {
 	return h.svc.CreateGroup(ctx, req)
@@ -232,58 +232,58 @@ func (h *Handler) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*pb.Gr
 	return h.svc.GetGroup(ctx, req)
 }
 
-// UpdateGroup: updates name/description (parent_id is immutable).
+// UpdateGroup — updates name/description (parent_id is immutable).
 func (h *Handler) UpdateGroup(ctx context.Context, req *pb.UpdateGroupRequest) (*pb.Group, error) {
 	return h.svc.UpdateGroup(ctx, req)
 }
 
-// ListGroups: cursor-paginated groups filtered by status.
+// ListGroups — cursor-paginated groups filtered by status.
 func (h *Handler) ListGroups(ctx context.Context, req *pb.ListGroupsRequest) (*pb.ListGroupsResponse, error) {
 	return h.svc.ListGroups(ctx, req)
 }
 
-// DeleteGroup: removes a group; does NOT cascade to direct user→role
+// DeleteGroup — removes a group; does NOT cascade to direct user→role
 // assignments. Clean up AddGroupRole mappings first.
 func (h *Handler) DeleteGroup(ctx context.Context, req *pb.DeleteGroupRequest) (*emptypb.Empty, error) {
 	return h.svc.DeleteGroup(ctx, req)
 }
 
-// AddGroupMember: adds a user with in-group role (owner/admin/member).
+// AddGroupMember — adds a user with in-group role (owner/admin/member).
 // Invalidates the user's RBAC cache.
 func (h *Handler) AddGroupMember(ctx context.Context, req *pb.AddGroupMemberRequest) (*emptypb.Empty, error) {
 	return h.svc.AddGroupMember(ctx, req)
 }
 
-// RemoveGroupMember: invalidates the user's RBAC cache. Permissions arriving
+// RemoveGroupMember — invalidates the user's RBAC cache. Permissions arriving
 // via this group's roles are dropped.
 func (h *Handler) RemoveGroupMember(ctx context.Context, req *pb.RemoveGroupMemberRequest) (*emptypb.Empty, error) {
 	return h.svc.RemoveGroupMember(ctx, req)
 }
 
-// ListGroupMembers: cursor-paginated, optionally filtered by in-group role.
+// ListGroupMembers — cursor-paginated, optionally filtered by in-group role.
 func (h *Handler) ListGroupMembers(ctx context.Context, req *pb.ListGroupMembersRequest) (*pb.ListGroupMembersResponse, error) {
 	return h.svc.ListGroupMembers(ctx, req)
 }
 
-// CreateRole: bundles permission_ids + permission_group_ids into a named role.
+// CreateRole — bundles permission_ids + permission_group_ids into a named role.
 // Get IDs from ListPermissions / ListPermissionGroups.
 func (h *Handler) CreateRole(ctx context.Context, req *pb.CreateRoleRequest) (*pb.Role, error) {
 	return h.svc.CreateRole(ctx, req)
 }
 
-// UpdateRole: FULLY REPLACES the permission set — pass the complete list,
+// UpdateRole — FULLY REPLACES the permission set — pass the complete list,
 // not deltas. Invalidates cache for all affected users.
 func (h *Handler) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*pb.Role, error) {
 	return h.svc.UpdateRole(ctx, req)
 }
 
-// DeleteRole: cascades to user/group assignments; invalidates cache for
+// DeleteRole — cascades to user/group assignments; invalidates cache for
 // affected users. Builtin roles should not be deleted.
 func (h *Handler) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*emptypb.Empty, error) {
 	return h.svc.DeleteRole(ctx, req)
 }
 
-// ListRoles: cursor-paginated roles.
+// ListRoles — cursor-paginated roles.
 func (h *Handler) ListRoles(ctx context.Context, req *pb.ListRolesRequest) (*pb.ListRolesResponse, error) {
 	return h.svc.ListRoles(ctx, req)
 }
@@ -293,12 +293,12 @@ func (h *Handler) GetRole(ctx context.Context, req *pb.GetRoleRequest) (*pb.Role
 	return h.svc.GetRole(ctx, req)
 }
 
-// ListPermissions: cursor-paginated permission catalog.
+// ListPermissions — cursor-paginated permission catalog.
 func (h *Handler) ListPermissions(ctx context.Context, req *pb.ListPermissionsRequest) (*pb.ListPermissionsResponse, error) {
 	return h.svc.ListPermissions(ctx, req)
 }
 
-// CreatePermission: adds a custom resource:action permission.
+// CreatePermission — adds a custom resource:action permission.
 func (h *Handler) CreatePermission(ctx context.Context, req *pb.CreatePermissionRequest) (*pb.Permission, error) {
 	return h.svc.CreatePermission(ctx, req)
 }
@@ -308,22 +308,22 @@ func (h *Handler) GetPermission(ctx context.Context, req *pb.GetPermissionReques
 	return h.svc.GetPermission(ctx, req)
 }
 
-// UpdatePermission: builtin permissions cannot be updated.
+// UpdatePermission — builtin permissions cannot be updated.
 func (h *Handler) UpdatePermission(ctx context.Context, req *pb.UpdatePermissionRequest) (*pb.Permission, error) {
 	return h.svc.UpdatePermission(ctx, req)
 }
 
-// DeletePermission: builtin permissions cannot be deleted.
+// DeletePermission — builtin permissions cannot be deleted.
 func (h *Handler) DeletePermission(ctx context.Context, req *pb.DeletePermissionRequest) (*emptypb.Empty, error) {
 	return h.svc.DeletePermission(ctx, req)
 }
 
-// ListPermissionGroups: cursor-paginated permission-group catalog.
+// ListPermissionGroups — cursor-paginated permission-group catalog.
 func (h *Handler) ListPermissionGroups(ctx context.Context, req *pb.ListPermissionGroupsRequest) (*pb.ListPermissionGroupsResponse, error) {
 	return h.svc.ListPermissionGroups(ctx, req)
 }
 
-// CreatePermissionGroup: creates a custom permission group and attaches the
+// CreatePermissionGroup — creates a custom permission group and attaches the
 // given permission_ids. Builtin permission groups cannot be created via this RPC.
 func (h *Handler) CreatePermissionGroup(ctx context.Context, req *pb.CreatePermissionGroupRequest) (*pb.PermissionGroup, error) {
 	return h.svc.CreatePermissionGroup(ctx, req)
@@ -334,48 +334,48 @@ func (h *Handler) GetPermissionGroup(ctx context.Context, req *pb.GetPermissionG
 	return h.svc.GetPermissionGroup(ctx, req)
 }
 
-// UpdatePermissionGroup: FULLY REPLACES the group's permission set — pass the
+// UpdatePermissionGroup — FULLY REPLACES the group's permission set — pass the
 // complete list, not deltas. Invalidates cache for all affected users.
 func (h *Handler) UpdatePermissionGroup(ctx context.Context, req *pb.UpdatePermissionGroupRequest) (*pb.PermissionGroup, error) {
 	return h.svc.UpdatePermissionGroup(ctx, req)
 }
 
-// DeletePermissionGroup: builtin groups cannot be deleted. Invalidates cache
+// DeletePermissionGroup — builtin groups cannot be deleted. Invalidates cache
 // for all affected users.
 func (h *Handler) DeletePermissionGroup(ctx context.Context, req *pb.DeletePermissionGroupRequest) (*emptypb.Empty, error) {
 	return h.svc.DeletePermissionGroup(ctx, req)
 }
 
-// AddGroupRole: grants a role to a group; members inherit. Invalidates cache
+// AddGroupRole — grants a role to a group; members inherit. Invalidates cache
 // for all current group members.
 func (h *Handler) AddGroupRole(ctx context.Context, req *pb.AddGroupRoleRequest) (*emptypb.Empty, error) {
 	return h.svc.AddGroupRole(ctx, req)
 }
 
-// RemoveGroupRole: invalidates cache for all current group members. Direct
+// RemoveGroupRole — invalidates cache for all current group members. Direct
 // user assignments (AssignRole) are unaffected.
 func (h *Handler) RemoveGroupRole(ctx context.Context, req *pb.RemoveGroupRoleRequest) (*emptypb.Empty, error) {
 	return h.svc.RemoveGroupRole(ctx, req)
 }
 
-// ListGroupRoles: lists roles attached to a group.
+// ListGroupRoles — lists roles attached to a group.
 func (h *Handler) ListGroupRoles(ctx context.Context, req *pb.ListGroupRolesRequest) (*pb.ListGroupRolesResponse, error) {
 	return h.svc.ListGroupRoles(ctx, req)
 }
 
-// AssignRole: grants a role directly to a user. Use AddGroupRole for
+// AssignRole — grants a role directly to a user. Use AddGroupRole for
 // group-wide permissions. Invalidates the user's RBAC cache.
 func (h *Handler) AssignRole(ctx context.Context, req *pb.AssignRoleRequest) (*emptypb.Empty, error) {
 	return h.svc.AssignRole(ctx, req)
 }
 
-// RevokeRole: revokes a direct assignment; does NOT touch group-inherited
+// RevokeRole — revokes a direct assignment; does NOT touch group-inherited
 // permissions (call RemoveGroupRole for that).
 func (h *Handler) RevokeRole(ctx context.Context, req *pb.RevokeRoleRequest) (*emptypb.Empty, error) {
 	return h.svc.RevokeRole(ctx, req)
 }
 
-// ListUserRoles: lists roles assigned to a user.
+// ListUserRoles — lists roles assigned to a user.
 func (h *Handler) ListUserRoles(ctx context.Context, req *pb.ListUserRolesRequest) (*pb.ListUserRolesResponse, error) {
 	return h.svc.ListUserRoles(ctx, req)
 }

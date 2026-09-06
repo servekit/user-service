@@ -15,6 +15,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+
 	"github.com/servekit/go-common/logging"
 	"github.com/servekit/go-common/signalx"
 

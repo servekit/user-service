@@ -6,7 +6,7 @@ import (
 	"time"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
-	"github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/internal/service/convert"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/pkg/clientinfo"
 	"github.com/servekit/user-service/pkg/xcodes"
@@ -120,6 +120,8 @@ func (s *Service) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessi
 // revoked_at distinguishes explicit logout from lapsed/evicted.
 const defaultHistoryPageSize = 20
 
+// ListSessions returns the caller's merged session view: ACTIVE rows from
+// Redis first, then REVOKED/EXPIRED tombstones from PG, newest first.
 func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest) (*pb.ListSessionsResponse, error) {
 	userID := req.GetUserId()
 	pageSize := req.GetPageSize()
@@ -172,7 +174,7 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 			pbSessions = append(pbSessions, &pb.Session{
 				Id:            sid,
 				Ip:            data.LoginIP,
-				DeviceType:    pb.DeviceType(common.DeviceTypeFromUA(data.UserAgent)),
+				DeviceType:    pb.DeviceType(convert.DeviceTypeFromUA(data.UserAgent)),
 				Os:            liveOS,
 				Browser:       liveBrowser,
 				CreatedAt:     timestamppb.New(data.LoginAt),
@@ -227,7 +229,7 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		pbSess := &pb.Session{
 			Id:            r.ID,
 			Ip:            r.IP,
-			DeviceType:    pb.DeviceType(common.DeviceTypeFromUA(r.UserAgent)),
+			DeviceType:    pb.DeviceType(convert.DeviceTypeFromUA(r.UserAgent)),
 			Os:            histOS,
 			Browser:       histBrowser,
 			CreatedAt:     timestamppb.New(r.CreatedAt),

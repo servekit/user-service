@@ -86,15 +86,15 @@ func FromCtx(ctx context.Context) ClientInfo {
 // clamp limits s to at most max runes — the unit varchar(n) enforces —
 // cutting on a rune boundary so the result stays valid UTF-8. The byte-length
 // fast path skips the rune conversion for the common short input.
-func clamp(s string, max int) string {
-	if len(s) <= max {
+func clamp(s string, limit int) string {
+	if len(s) <= limit {
 		return s
 	}
 	r := []rune(s)
-	if len(r) <= max {
+	if len(r) <= limit {
 		return s
 	}
-	return string(r[:max])
+	return string(r[:limit])
 }
 
 // firstValue returns the first metadata value for key, or "" when absent.

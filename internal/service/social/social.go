@@ -16,7 +16,7 @@ import (
 	gidservice "github.com/servekit/gid-service/pkg"
 	"github.com/servekit/user-service/internal/identity"
 	"github.com/servekit/user-service/internal/identity/tencent/mini"
-	common "github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/internal/service/convert"
 	userstore "github.com/servekit/user-service/internal/service/session"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
@@ -579,7 +579,7 @@ func (s *Service) SocialLogin(ctx context.Context, req *pb.SocialLoginRequest) (
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 		ReturnTo:  entry.ReturnTo,
 	}, nil
@@ -631,7 +631,7 @@ func (s *Service) MiniProgramLogin(ctx context.Context, req *pb.MiniProgramLogin
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 	}, nil
 }
@@ -718,7 +718,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		}
 
 		return &pb.LoginResponse{
-			User:      common.ConvertUser(user),
+			User:      convert.User(user),
 			SessionId: sessionID,
 		}, nil
 	}
@@ -735,7 +735,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		ci := clientinfo.FromCtx(ctx)
 		user = &models.UserUser{
-			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
+			Nickname:       convert.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
 			RegionCode:     regionCode,
 			Phone:          ptr.Ref(phoneNumber),
@@ -761,7 +761,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 			return err
 		}
 
-		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+		if err := dal.CreateRegisterProfile(ctx, tx, convert.NewRegisterProfile(user.ID, ci)); err != nil {
 			return err
 		}
 
@@ -794,7 +794,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 		IsNew:     true,
 	}, nil
@@ -885,7 +885,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		ci := clientinfo.FromCtx(ctx)
 		user = &models.UserUser{
-			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
+			Nickname:       convert.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
 			Status:         int32(pb.UserStatus_USER_STATUS_ACTIVE),
 			RegisterSource: int32(providerID),
@@ -907,7 +907,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 			return err
 		}
 
-		if err := dal.CreateRegisterProfile(ctx, tx, common.NewRegisterProfile(user.ID, ci)); err != nil {
+		if err := dal.CreateRegisterProfile(ctx, tx, convert.NewRegisterProfile(user.ID, ci)); err != nil {
 			return err
 		}
 
@@ -940,7 +940,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	}
 
 	return &pb.LoginResponse{
-		User:      common.ConvertUser(user),
+		User:      convert.User(user),
 		SessionId: sessionID,
 		IsNew:     true,
 	}, nil

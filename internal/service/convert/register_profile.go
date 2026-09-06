@@ -1,4 +1,4 @@
-package common
+package convert
 
 import (
 	"github.com/servekit/user-service/internal/store/models"

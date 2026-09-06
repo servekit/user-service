@@ -1,9 +1,9 @@
-package common_test
+package convert_test
 
 import (
 	"testing"
 
-	"github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/internal/service/convert"
 	"github.com/servekit/user-service/pkg/clientinfo"
 )
 
@@ -13,7 +13,7 @@ func TestNewRegisterProfile_MapsClientInfo(t *testing.T) {
 		UserAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) Chrome/152.0.0.0 Mobile Safari/537.36",
 		Device:    "Pixel 8 Pro",
 	}
-	p := common.NewRegisterProfile(42, ci)
+	p := convert.NewRegisterProfile(42, ci)
 	if p.UserID != 42 || p.IP != ci.IP || p.UserAgent != ci.UserAgent || p.Device != ci.Device {
 		t.Fatalf("profile = %+v, want clientinfo mapped verbatim", p)
 	}

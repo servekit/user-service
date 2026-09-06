@@ -144,7 +144,7 @@ func (s *Service) invalidatePermissionCache(ctx context.Context, permID int64) e
 		return err
 	}
 	for _, uid := range userIDs {
-		if err := s.cache.InvalidateUser(ctx, uid); err != nil {
+		if err := s.permCache.InvalidateUser(ctx, uid); err != nil {
 			return err
 		}
 	}
@@ -369,7 +369,7 @@ func (s *Service) invalidatePermissionGroupCache(ctx context.Context, pgID int64
 		}
 	}
 	for uid := range userSet {
-		if err := s.cache.InvalidateUser(ctx, uid); err != nil {
+		if err := s.permCache.InvalidateUser(ctx, uid); err != nil {
 			return err
 		}
 	}
@@ -382,7 +382,7 @@ func (s *Service) invalidatePermissionGroupCache(ctx context.Context, pgID int64
 // Checks the resolved-permissions cache first; on miss, resolves via GetUserRoles
 // (which itself is cached) and populates the perms cache.
 func (s *Service) GetUserPermissions(ctx context.Context, userID int64) ([]cache.PermissionEntry, error) {
-	if cached, err := s.cache.GetUserPermissions(ctx, userID); err == nil && cached != nil {
+	if cached, err := s.permCache.GetUserPermissions(ctx, userID); err == nil && cached != nil {
 		result := make([]cache.PermissionEntry, 0, len(cached))
 		for k := range cached {
 			resource, action, _ := strings.Cut(k, ":")
@@ -407,25 +407,22 @@ func (s *Service) GetUserPermissions(ctx context.Context, userID int64) ([]cache
 		return nil, nil
 	}
 
-	perms, err := s.resolvePermissions(ctx, permIDs)
-	if err != nil {
-		return nil, err
-	}
-	_ = s.cache.SetUserPermissions(ctx, userID, perms) //nolint:errcheck // cache write is best-effort
+	perms := s.resolvePermissions(ctx, permIDs)
+	_ = s.permCache.SetUserPermissions(ctx, userID, perms) //nolint:errcheck // cache write is best-effort
 	return perms, nil
 }
 
 // GetUserRoles returns all role IDs for a user (direct + group-inherited).
 // Read-through cache: cache first, DB fallback via collectRoleIDs, populate cache on miss.
 func (s *Service) GetUserRoles(ctx context.Context, userID int64) ([]int64, error) {
-	if cached, err := s.cache.GetUserRoles(ctx, userID); err == nil && cached != nil {
+	if cached, err := s.permCache.GetUserRoles(ctx, userID); err == nil && cached != nil {
 		return cached, nil
 	}
 	roleIDs, err := s.collectRoleIDs(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.cache.SetUserRoles(ctx, userID, roleIDs) //nolint:errcheck // cache write is best-effort
+	_ = s.permCache.SetUserRoles(ctx, userID, roleIDs) //nolint:errcheck // cache write is best-effort
 	return roleIDs, nil
 }
 
@@ -505,7 +502,10 @@ func (s *Service) collectPermissionIDs(ctx context.Context, roleIDs []int64) (ma
 	return permSet, nil
 }
 
-func (s *Service) resolvePermissions(ctx context.Context, permIDs map[int64]struct{}) ([]cache.PermissionEntry, error) {
+// resolvePermissions loads the permission rows behind permIDs, deduplicated
+// by resource:action. Unreadable rows are skipped (best-effort resolution),
+// so there is no error return.
+func (s *Service) resolvePermissions(ctx context.Context, permIDs map[int64]struct{}) []cache.PermissionEntry {
 	seen := make(map[string]struct{})
 	result := make([]cache.PermissionEntry, 0, len(permIDs))
 
@@ -521,5 +521,5 @@ func (s *Service) resolvePermissions(ctx context.Context, permIDs map[int64]stru
 		seen[key] = struct{}{}
 		result = append(result, cache.PermissionEntry{Resource: perm.Resource, Action: perm.Action})
 	}
-	return result, nil
+	return result
 }

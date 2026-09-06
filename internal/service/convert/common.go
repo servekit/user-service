@@ -1,14 +1,15 @@
-// Package common holds helpers shared across service subpackages
+// Package convert holds helpers shared across service subpackages
 // (auth, social, user, etc.) to prevent duplication.
-package common
+package convert
 
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
-	"github.com/servekit/go-common/useragent"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/clientinfo"
+
+	"github.com/servekit/go-common/useragent"
 )
 
 // DeviceTypeFromUA classifies a raw User-Agent onto the pb.DeviceType value
@@ -39,8 +40,8 @@ func DeviceTypeFromUA(ua string) int32 {
 	}
 }
 
-// ConvertUser maps a stored *models.UserUser to its proto representation.
-func ConvertUser(u *models.UserUser) *pb.User {
+// User maps a stored *models.UserUser to its proto representation.
+func User(u *models.UserUser) *pb.User {
 	p := &pb.User{
 		Id:             u.ID,
 		Nickname:       u.Nickname,

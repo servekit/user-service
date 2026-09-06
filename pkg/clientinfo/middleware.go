@@ -1,5 +1,6 @@
 // HTTP edge middleware: capture the caller's environment before it crosses
 // the gateway boundary.
+
 package clientinfo
 
 import (

@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// User represents the core user record with snowflake ID.
+// UserUser represents the core user record with snowflake ID.
 type UserUser struct {
 	ID             int64   `gorm:"primaryKey"`
 	Username       *string `gorm:"size:64;uniqueIndex"`

@@ -101,7 +101,7 @@ func (s *Service) UpdateRole(ctx context.Context, req *pb.UpdateRoleRequest) (*p
 	if err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateRole(ctx, role.ID, userIDs); err != nil {
+	if err := s.permCache.InvalidateRole(ctx, role.ID, userIDs); err != nil {
 		return nil, err
 	}
 
@@ -118,7 +118,7 @@ func (s *Service) DeleteRole(ctx context.Context, req *pb.DeleteRoleRequest) (*e
 	if err := dal.DeleteUserRole(ctx, s.db, req.RoleId); err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateRole(ctx, req.RoleId, userIDs); err != nil {
+	if err := s.permCache.InvalidateRole(ctx, req.RoleId, userIDs); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -158,7 +158,7 @@ func (s *Service) AssignRole(ctx context.Context, req *pb.AssignRoleRequest) (*e
 	if err := dal.AssignUserRoleMapping(ctx, s.db, ur); err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateUser(ctx, req.UserId); err != nil {
+	if err := s.permCache.InvalidateUser(ctx, req.UserId); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -169,7 +169,7 @@ func (s *Service) RevokeRole(ctx context.Context, req *pb.RevokeRoleRequest) (*e
 	if err := dal.RemoveUserRoleMapping(ctx, s.db, req.UserId, req.RoleId); err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateUser(ctx, req.UserId); err != nil {
+	if err := s.permCache.InvalidateUser(ctx, req.UserId); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -270,7 +270,7 @@ func (s *Service) AddGroupRole(ctx context.Context, req *pb.AddGroupRoleRequest)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateGroup(ctx, req.GroupId, memberIDs); err != nil {
+	if err := s.permCache.InvalidateGroup(ctx, req.GroupId, memberIDs); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -285,7 +285,7 @@ func (s *Service) RemoveGroupRole(ctx context.Context, req *pb.RemoveGroupRoleRe
 	if err != nil {
 		return nil, err
 	}
-	if err := s.cache.InvalidateGroup(ctx, req.GroupId, memberIDs); err != nil {
+	if err := s.permCache.InvalidateGroup(ctx, req.GroupId, memberIDs); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

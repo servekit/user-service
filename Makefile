@@ -44,10 +44,11 @@ test:
 lint:
 	golangci-lint run ./...
 
-## fmt: Format code
+## fmt: Format code (golangci-lint fmt applies the repo's gofmt+goimports
+## settings incl. local-prefixes grouping; bare goimports disagrees with the
+## lint config and reintroduces import-group drift)
 fmt:
-	gofmt -w .
-	goimports -w .
+	golangci-lint fmt ./...
 
 ## vet: Run go vet
 vet:

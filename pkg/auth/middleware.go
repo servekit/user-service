@@ -1,5 +1,6 @@
 // Edge HTTP middleware: verify the bearer session at the gateway and reject
 // unauthorized requests before they reach any backend handler.
+
 package auth
 
 import (

@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/servekit/go-common/grpcx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/servekit/go-common/grpcx"
 
 	"github.com/servekit/user-service/pkg/auth"
 )

@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
-	"github.com/servekit/go-common/xerr"
-	"github.com/servekit/go-common/xerr/xcodes"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/servekit/user-service/pkg"
+	"github.com/servekit/go-common/xerr"
+	"github.com/servekit/go-common/xerr/xcodes"
+
+	userservice "github.com/servekit/user-service/pkg"
 	"github.com/servekit/user-service/pkg/auth"
 )
 

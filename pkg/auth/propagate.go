@@ -1,5 +1,6 @@
 // gRPC-side identity propagation: lift the trusted identity metadata (set by
 // Middleware at the HTTP edge) into the handler context.
+
 package auth
 
 import (
@@ -7,9 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/servekit/go-common/grpcx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/servekit/go-common/grpcx"
 )
 
 // TrustedIdentityUnary returns a gRPC unary server interceptor that copies
