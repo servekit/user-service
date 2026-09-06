@@ -8,39 +8,33 @@ import (
 )
 
 var UserSession = struct {
-	ID          field.String
-	UserID      field.Number[int64]
-	LoginMethod field.String
-	LoginTarget field.String
-	Device      field.String
-	IP          field.String
-	UserAgent   field.String
-	DeviceType  field.Number[int32]
-	OS          field.String
-	Browser     field.String
-	Country     field.String
-	City        field.String
-	ExpiresAt   field.Time
-	RevokedAt   field.Time
-	CreatedAt   field.Time
-	UpdatedAt   field.Time
-	DeletedAt   field.Field[gorm.DeletedAt]
+	ID        field.String
+	UserID    field.Number[int64]
+	Method    field.Number[int32]
+	Provider  field.Number[int32]
+	Target    field.String
+	Device    field.String
+	IP        field.String
+	UserAgent field.String
+	Country   field.String
+	City      field.String
+	RevokedAt field.Time
+	CreatedAt field.Time
+	UpdatedAt field.Time
+	DeletedAt field.Field[gorm.DeletedAt]
 }{
-	ID:          field.String{}.WithColumn("id"),
-	UserID:      field.Number[int64]{}.WithColumn("user_id"),
-	LoginMethod: field.String{}.WithColumn("login_method"),
-	LoginTarget: field.String{}.WithColumn("login_target"),
-	Device:      field.String{}.WithColumn("device"),
-	IP:          field.String{}.WithColumn("ip"),
-	UserAgent:   field.String{}.WithColumn("user_agent"),
-	DeviceType:  field.Number[int32]{}.WithColumn("device_type"),
-	OS:          field.String{}.WithColumn("os"),
-	Browser:     field.String{}.WithColumn("browser"),
-	Country:     field.String{}.WithColumn("country"),
-	City:        field.String{}.WithColumn("city"),
-	ExpiresAt:   field.Time{}.WithColumn("expires_at"),
-	RevokedAt:   field.Time{}.WithColumn("revoked_at"),
-	CreatedAt:   field.Time{}.WithColumn("created_at"),
-	UpdatedAt:   field.Time{}.WithColumn("updated_at"),
-	DeletedAt:   field.Field[gorm.DeletedAt]{}.WithColumn("deleted_at"),
+	ID:        field.String{}.WithColumn("id"),
+	UserID:    field.Number[int64]{}.WithColumn("user_id"),
+	Method:    field.Number[int32]{}.WithColumn("method"),
+	Provider:  field.Number[int32]{}.WithColumn("provider"),
+	Target:    field.String{}.WithColumn("target"),
+	Device:    field.String{}.WithColumn("device"),
+	IP:        field.String{}.WithColumn("ip"),
+	UserAgent: field.String{}.WithColumn("user_agent"),
+	Country:   field.String{}.WithColumn("country"),
+	City:      field.String{}.WithColumn("city"),
+	RevokedAt: field.Time{}.WithColumn("revoked_at"),
+	CreatedAt: field.Time{}.WithColumn("created_at"),
+	UpdatedAt: field.Time{}.WithColumn("updated_at"),
+	DeletedAt: field.Field[gorm.DeletedAt]{}.WithColumn("deleted_at"),
 }

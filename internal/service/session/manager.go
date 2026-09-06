@@ -14,19 +14,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Data stored in Redis for each active session.
+// Data stored in Redis for each active session. os/browser are NOT stored —
+// they parse from the raw UserAgent at read time.
 type Data struct {
 	UserID int64 `json:"user_id"`
 	// LoginTarget is the credential subject (username/email/phone/oauth
-	// uid) — sensitive ops gate on login strength via LoginMethod+Target.
-	LoginTarget string    `json:"login_target"`
-	LoginIP     string    `json:"login_ip"`
-	LoginAt     time.Time `json:"login_at"`
-	LoginMethod string    `json:"login_method"` // email, phone, github, google, wechat, apple
-	UserAgent   string    `json:"user_agent"`   // raw User-Agent header
-	OS          string    `json:"os"`           // e.g. "iOS 17.2", "Windows 11", "macOS 14.1"
-	Browser     string    `json:"browser"`      // e.g. "Chrome 120", "Safari 17", "WeChat 8.0"
-	Device      string    `json:"device"`       // e.g. "iPhone 15 Pro", "Samsung Galaxy S24", "MacBook Pro"
+	// uid) — sensitive ops gate on login strength via Method/Provider+Target.
+	LoginTarget string `json:"login_target"`
+	// Method is pb.LoginMethod; social logins stay UNSPECIFIED with
+	// Provider carrying the IdP (mirrors the PG columns).
+	Method    int32     `json:"method"`
+	Provider  int32     `json:"provider"`
+	LoginIP   string    `json:"login_ip"`
+	LoginAt   time.Time `json:"login_at"`
+	UserAgent string    `json:"user_agent"` // raw User-Agent header; os/browser derive from it
+	Device    string    `json:"device"`     // hardware name (client hint > UA); not derivable
 }
 
 // Manager manages sessions in Redis.
@@ -144,21 +146,25 @@ func (m *Manager) Revoke(ctx context.Context, sessionID string, userID int64) er
 	return nil
 }
 
-// RevokeAll removes all sessions for a user.
-func (m *Manager) RevokeAll(ctx context.Context, userID int64) error {
+// RevokeAll removes every session for a user, optionally keeping one alive
+// (the caller's current session for "log out other devices": its key and ZSET
+// entry both survive). excludeSessionID == "" revokes everything — the
+// risk-sensitive flows (password change/reset, user disable) use that form
+// and deliberately kill the caller's own session too.
+func (m *Manager) RevokeAll(ctx context.Context, userID int64, excludeSessionID string) error {
 	uKey := m.userSessionsKey(userID)
 	sessionIDs, err := m.client.ZRange(ctx, uKey, 0, -1).Result()
 	if err != nil {
 		return xcodes.ErrInternal.Wrap(err)
 	}
-	if len(sessionIDs) == 0 {
-		return nil
-	}
 	pipe := m.client.Pipeline()
 	for _, sid := range sessionIDs {
+		if sid == excludeSessionID {
+			continue
+		}
 		pipe.Del(ctx, m.sessionKey(sid))
+		pipe.ZRem(ctx, uKey, sid)
 	}
-	pipe.Del(ctx, uKey)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return xcodes.ErrInternal.Wrap(err)
 	}

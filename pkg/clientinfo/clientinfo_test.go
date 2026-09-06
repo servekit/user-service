@@ -56,7 +56,7 @@ func TestFromCtx_ReadsEdgeMetadata(t *testing.T) {
 	ci := clientinfo.FromCtx(ctx)
 	require.Equal(t, "203.0.113.7", ci.IP)
 	require.Equal(t, "iOS 17.2", ci.OS)
-	require.Equal(t, "Safari 17.0", ci.Browser) // Version/ token, not the OS build
+	require.Equal(t, "Mobile Safari 17.0", ci.Browser) // Version/ token, not the OS build
 	require.Equal(t, "iPhone", ci.Device)
 	require.Contains(t, ci.UserAgent, "iPhone")
 }
@@ -89,7 +89,7 @@ func TestParseUA(t *testing.T) {
 			name:        "safari on iphone",
 			ua:          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 			wantOS:      "iOS 17.2",
-			wantBrowser: "Safari 17.0",
+			wantBrowser: "Mobile Safari 17.0",
 			wantDevice:  "iPhone",
 		},
 		{
@@ -103,7 +103,7 @@ func TestParseUA(t *testing.T) {
 			name:        "edge on windows",
 			ua:          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.2210.91",
 			wantOS:      "Windows", // NT 10.0 cannot distinguish 10 from 11
-			wantBrowser: "Edge 120.0.2210.91",
+			wantBrowser: "Microsoft Edge 120.0.2210.91",
 		},
 		{
 			name:        "firefox on linux",
@@ -115,13 +115,13 @@ func TestParseUA(t *testing.T) {
 			name:        "ipad",
 			ua:          "Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
 			wantOS:      "iOS 16.6",
-			wantBrowser: "Safari 16.6",
+			wantBrowser: "Mobile Safari 16.6",
 			wantDevice:  "iPad",
 		},
 		{
 			name:        "grpc client",
 			ua:          "grpc-go/1.83.2",
-			wantBrowser: "gRPC 1.83.2",
+			wantBrowser: "grpc-go 1.83.2",
 		},
 		{
 			name:        "okhttp (android app)",
@@ -131,7 +131,7 @@ func TestParseUA(t *testing.T) {
 		{
 			name:        "go http client",
 			ua:          "Go-http-client/2.0",
-			wantBrowser: "Go 2.0",
+			wantBrowser: "Go-http-client 2.0",
 		},
 		{
 			name:        "python requests",
@@ -141,7 +141,7 @@ func TestParseUA(t *testing.T) {
 		{
 			name:        "postman",
 			ua:          "PostmanRuntime/7.36.0",
-			wantBrowser: "Postman 7.36.0",
+			wantBrowser: "PostmanRuntime 7.36.0",
 		},
 		{
 			name:        "curl",

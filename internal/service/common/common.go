@@ -3,34 +3,44 @@
 package common
 
 import (
-	"strings"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
+	"github.com/servekit/go-common/useragent"
 	"github.com/servekit/user-service/internal/store/models"
 	"github.com/servekit/user-service/pkg/clientinfo"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// LoginDeviceType maps the captured client environment onto the pb.DeviceType
-// value stored in session and login-log rows. A caller with no User-Agent at
-// all (direct gRPC / machine client, no edge middleware in front) is
-// classified as API rather than Web.
-func LoginDeviceType(ci clientinfo.ClientInfo) int32 {
+// DeviceTypeFromUA classifies a raw User-Agent onto the pb.DeviceType value
+// for session and login-log rows. os/browser columns are gone — the class
+// derives from the UA at read time (iOS → IOS; any other phone OS incl.
+// HarmonyOS → ANDROID; HTTP libraries → API; desktop browsers → WEB; no UA
+// at all → API for machine callers on direct gRPC, UNSPECIFIED when unknown).
+func DeviceTypeFromUA(ua string) int32 {
 	switch {
-	case strings.Contains(ci.OS, "iOS"):
-		return int32(pb.DeviceType_DEVICE_TYPE_IOS)
-	case strings.Contains(ci.OS, "Android"):
-		return int32(pb.DeviceType_DEVICE_TYPE_ANDROID)
-	case clientinfo.IsApiClient(ci.UserAgent), ci.UserAgent == "":
+	case ua == "":
+		return int32(pb.DeviceType_DEVICE_TYPE_UNSPECIFIED)
+	case clientinfo.IsApiClient(ua):
 		return int32(pb.DeviceType_DEVICE_TYPE_API)
+	}
+	r := useragent.Parse(ua)
+	switch {
+	case r.OS == "iOS":
+		return int32(pb.DeviceType_DEVICE_TYPE_IOS)
+	case r.DeviceClass == useragent.ClassSmartphone,
+		r.DeviceClass == useragent.ClassTablet,
+		r.DeviceClass == useragent.ClassMobile,
+		r.OS == "Android", r.OS == "HarmonyOS", r.OS == "OpenHarmony":
+		return int32(pb.DeviceType_DEVICE_TYPE_ANDROID)
+	case r.DeviceClass == useragent.ClassDesktop:
+		return int32(pb.DeviceType_DEVICE_TYPE_WEB)
 	default:
 		return int32(pb.DeviceType_DEVICE_TYPE_WEB)
 	}
 }
 
-// ConvertUser maps a stored *models.User to its proto representation.
-func ConvertUser(u *models.User) *pb.User {
+// ConvertUser maps a stored *models.UserUser to its proto representation.
+func ConvertUser(u *models.UserUser) *pb.User {
 	p := &pb.User{
 		Id:             u.ID,
 		Nickname:       u.Nickname,

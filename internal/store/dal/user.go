@@ -72,17 +72,17 @@ type UserPagedFilter struct {
 }
 
 // CreateUser inserts a new user record.
-func CreateUser(ctx context.Context, tx *gorm.DB, user *models.User) error {
-	if err := gorm.G[models.User](tx).Create(ctx, user); err != nil {
+func CreateUser(ctx context.Context, tx *gorm.DB, user *models.UserUser) error {
+	if err := gorm.G[models.UserUser](tx).Create(ctx, user); err != nil {
 		return xcodes.ErrInternal.Wrap(err)
 	}
 	return nil
 }
 
 // GetUserByID returns a user by ID.
-func GetUserByID(ctx context.Context, tx *gorm.DB, id int64) (*models.User, error) {
-	user, err := gorm.G[models.User](tx).
-		Where(generated.User.ID.Eq(id)).
+func GetUserByID(ctx context.Context, tx *gorm.DB, id int64) (*models.UserUser, error) {
+	user, err := gorm.G[models.UserUser](tx).
+		Where(generated.UserUser.ID.Eq(id)).
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -94,9 +94,9 @@ func GetUserByID(ctx context.Context, tx *gorm.DB, id int64) (*models.User, erro
 }
 
 // GetUserByEmail returns a user by email address.
-func GetUserByEmail(ctx context.Context, tx *gorm.DB, email string) (*models.User, error) {
-	user, err := gorm.G[models.User](tx).
-		Where(generated.User.Email.Eq(email)).
+func GetUserByEmail(ctx context.Context, tx *gorm.DB, email string) (*models.UserUser, error) {
+	user, err := gorm.G[models.UserUser](tx).
+		Where(generated.UserUser.Email.Eq(email)).
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -109,10 +109,10 @@ func GetUserByEmail(ctx context.Context, tx *gorm.DB, email string) (*models.Use
 
 // GetUserByPhone returns a user by region code + phone number.
 // Both arguments are required; the lookup uses the composite unique index.
-func GetUserByPhone(ctx context.Context, tx *gorm.DB, regionCode, phone string) (*models.User, error) {
-	user, err := gorm.G[models.User](tx).
-		Where(generated.User.RegionCode.Eq(regionCode)).
-		Where(generated.User.Phone.Eq(phone)).
+func GetUserByPhone(ctx context.Context, tx *gorm.DB, regionCode, phone string) (*models.UserUser, error) {
+	user, err := gorm.G[models.UserUser](tx).
+		Where(generated.UserUser.RegionCode.Eq(regionCode)).
+		Where(generated.UserUser.Phone.Eq(phone)).
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -124,9 +124,9 @@ func GetUserByPhone(ctx context.Context, tx *gorm.DB, regionCode, phone string) 
 }
 
 // GetUserByUsername returns a user by username.
-func GetUserByUsername(ctx context.Context, tx *gorm.DB, username string) (*models.User, error) {
-	user, err := gorm.G[models.User](tx).
-		Where(generated.User.Username.Eq(username)).
+func GetUserByUsername(ctx context.Context, tx *gorm.DB, username string) (*models.UserUser, error) {
+	user, err := gorm.G[models.UserUser](tx).
+		Where(generated.UserUser.Username.Eq(username)).
 		Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -138,7 +138,7 @@ func GetUserByUsername(ctx context.Context, tx *gorm.DB, username string) (*mode
 }
 
 // UpdateUser saves changes to a user record (all fields, including zero values).
-func UpdateUser(ctx context.Context, tx *gorm.DB, user *models.User) error {
+func UpdateUser(ctx context.Context, tx *gorm.DB, user *models.UserUser) error {
 	result := tx.WithContext(ctx).Save(user)
 	if result.Error != nil {
 		return xcodes.ErrInternal.Wrap(result.Error)
@@ -151,11 +151,11 @@ func UpdateUser(ctx context.Context, tx *gorm.DB, user *models.User) error {
 
 // UpdateUserLastLogin updates the last login timestamp and IP.
 func UpdateUserLastLogin(ctx context.Context, tx *gorm.DB, id int64, ip string) error {
-	rowsAffected, err := gorm.G[models.User](tx).
-		Where(generated.User.ID.Eq(id)).
+	rowsAffected, err := gorm.G[models.UserUser](tx).
+		Where(generated.UserUser.ID.Eq(id)).
 		Set(
-			generated.User.LastLoginAt.Now(),
-			generated.User.LastLoginIP.Set(ip),
+			generated.UserUser.LastLoginAt.Now(),
+			generated.UserUser.LastLoginIP.Set(ip),
 		).
 		Update(ctx)
 	if err != nil {
@@ -175,10 +175,10 @@ func UpdateUserLastLogin(ctx context.Context, tx *gorm.DB, id int64, ip string) 
 // The returned slice may be pageSize+1 long; service layer trims via
 // dbx.TrimPage and re-encodes the last row as the next page token.
 // All zero/empty/nil fields in f are treated as "no filter on this field".
-func ListUsers(ctx context.Context, tx *gorm.DB, f UserFilter) ([]*models.User, error) {
+func ListUsers(ctx context.Context, tx *gorm.DB, f UserFilter) ([]*models.UserUser, error) {
 	pg := f.Normalize()
 
-	q := gorm.G[models.User](tx).Scopes(func(*gorm.Statement) {})
+	q := gorm.G[models.UserUser](tx).Scopes(func(*gorm.Statement) {})
 	q = applyUserOrder(q, f.OrderBy, f.Descending)
 	q = applyUserCursor(q, f.OrderBy, f.Descending, pg.AfterID, f.AfterCreatedAt, f.AfterUpdatedAt, f.AfterLastLoginAt)
 	q = applyUserFilters(q, f.UserFilterCore)
@@ -188,7 +188,7 @@ func ListUsers(ctx context.Context, tx *gorm.DB, f UserFilter) ([]*models.User, 
 		return nil, xcodes.ErrInternal.Wrap(err)
 	}
 
-	users := make([]*models.User, len(results))
+	users := make([]*models.UserUser, len(results))
 	for i := range results {
 		users[i] = &results[i]
 	}
@@ -201,10 +201,10 @@ func ListUsers(ctx context.Context, tx *gorm.DB, f UserFilter) ([]*models.User, 
 // (cursor) instead.
 //
 // When f.Count is false, COUNT(*) is skipped and the returned total is 0.
-func ListUsersPaged(ctx context.Context, tx *gorm.DB, f UserPagedFilter) ([]*models.User, int64, error) {
+func ListUsersPaged(ctx context.Context, tx *gorm.DB, f UserPagedFilter) ([]*models.UserUser, int64, error) {
 	pp := f.Normalize()
 
-	q := gorm.G[models.User](tx).Scopes(func(*gorm.Statement) {})
+	q := gorm.G[models.UserUser](tx).Scopes(func(*gorm.Statement) {})
 	q = applyUserFilters(q, f.UserFilterCore)
 
 	var total int64
@@ -228,7 +228,7 @@ func ListUsersPaged(ctx context.Context, tx *gorm.DB, f UserPagedFilter) ([]*mod
 		return nil, 0, xcodes.ErrInternal.Wrap(err)
 	}
 
-	users := make([]*models.User, len(results))
+	users := make([]*models.UserUser, len(results))
 	for i := range results {
 		users[i] = &results[i]
 	}
@@ -238,63 +238,63 @@ func ListUsersPaged(ctx context.Context, tx *gorm.DB, f UserPagedFilter) ([]*mod
 // applyUserFilters applies the shared WHERE clauses from UserFilterCore.
 // Order/cursor are applied separately because they interact with pagination
 // (cursor emits a WHERE on the sort column; order emits the ORDER BY).
-func applyUserFilters(q gorm.ChainInterface[models.User], f UserFilterCore) gorm.ChainInterface[models.User] {
+func applyUserFilters(q gorm.ChainInterface[models.UserUser], f UserFilterCore) gorm.ChainInterface[models.UserUser] {
 	if f.Status != 0 {
-		q = q.Where(generated.User.Status.Eq(f.Status))
+		q = q.Where(generated.UserUser.Status.Eq(f.Status))
 	}
 	if f.Gender != 0 {
-		q = q.Where(generated.User.Gender.Eq(f.Gender))
+		q = q.Where(generated.UserUser.Gender.Eq(f.Gender))
 	}
 	if f.RegisterSource != 0 {
-		q = q.Where(generated.User.RegisterSource.Eq(f.RegisterSource))
+		q = q.Where(generated.UserUser.RegisterSource.Eq(f.RegisterSource))
 	}
 	if f.RegisterDevice != 0 {
-		q = q.Where(generated.User.RegisterDevice.Eq(f.RegisterDevice))
+		q = q.Where(generated.UserUser.RegisterDevice.Eq(f.RegisterDevice))
 	}
 	if f.UserType != 0 {
-		q = q.Where(generated.User.UserType.Eq(f.UserType))
+		q = q.Where(generated.UserUser.UserType.Eq(f.UserType))
 	}
 	if f.Locale != "" {
-		q = q.Where(generated.User.Locale.Eq(f.Locale))
+		q = q.Where(generated.UserUser.Locale.Eq(f.Locale))
 	}
 	if f.Timezone != "" {
-		q = q.Where(generated.User.Timezone.Eq(f.Timezone))
+		q = q.Where(generated.UserUser.Timezone.Eq(f.Timezone))
 	}
 	if f.RegisterIP != "" {
-		q = q.Where(generated.User.RegisterIP.Eq(f.RegisterIP))
+		q = q.Where(generated.UserUser.RegisterIP.Eq(f.RegisterIP))
 	}
 	if f.LastLoginIP != "" {
-		q = q.Where(generated.User.LastLoginIP.Eq(f.LastLoginIP))
+		q = q.Where(generated.UserUser.LastLoginIP.Eq(f.LastLoginIP))
 	}
 	if f.CreatedAtStart != nil {
-		q = q.Where(generated.User.CreatedAt.Gte(*f.CreatedAtStart))
+		q = q.Where(generated.UserUser.CreatedAt.Gte(*f.CreatedAtStart))
 	}
 	if f.CreatedAtEnd != nil {
-		q = q.Where(generated.User.CreatedAt.Lt(*f.CreatedAtEnd))
+		q = q.Where(generated.UserUser.CreatedAt.Lt(*f.CreatedAtEnd))
 	}
 	if f.LastLoginAtStart != nil {
-		q = q.Where(generated.User.LastLoginAt.Gte(*f.LastLoginAtStart))
+		q = q.Where(generated.UserUser.LastLoginAt.Gte(*f.LastLoginAtStart))
 	}
 	if f.LastLoginAtEnd != nil {
-		q = q.Where(generated.User.LastLoginAt.Lt(*f.LastLoginAtEnd))
+		q = q.Where(generated.UserUser.LastLoginAt.Lt(*f.LastLoginAtEnd))
 	}
 	if f.NicknamePrefix != "" {
 		// Prefix match: LIKE 'prefix%' can use the nickname B-tree index.
-		q = q.Where(generated.User.Nickname.Like(f.NicknamePrefix + "%"))
+		q = q.Where(generated.UserUser.Nickname.Like(f.NicknamePrefix + "%"))
 	}
 	if len(f.UserIDs) > 0 {
-		q = q.Where(generated.User.ID.In(f.UserIDs...))
+		q = q.Where(generated.UserUser.ID.In(f.UserIDs...))
 	}
 	if f.Email != "" {
-		q = q.Where(generated.User.Email.Eq(f.Email))
+		q = q.Where(generated.UserUser.Email.Eq(f.Email))
 	}
 	if f.RegionCode != "" && f.Phone != "" {
 		q = q.
-			Where(generated.User.RegionCode.Eq(f.RegionCode)).
-			Where(generated.User.Phone.Eq(f.Phone))
+			Where(generated.UserUser.RegionCode.Eq(f.RegionCode)).
+			Where(generated.UserUser.Phone.Eq(f.Phone))
 	}
 	if f.Username != "" {
-		q = q.Where(generated.User.Username.Eq(f.Username))
+		q = q.Where(generated.UserUser.Username.Eq(f.Username))
 	}
 	return q
 }
@@ -311,28 +311,28 @@ const (
 // applyUserOrder emits the (sort_col, id) ORDER BY. The id tiebreaker keeps
 // pagination stable when sort_col has duplicate values. UNSPECIFIED falls
 // back to id so legacy callers (and bare-numeric tokens) keep working.
-func applyUserOrder(q gorm.ChainInterface[models.User], orderBy int32, descending bool) gorm.ChainInterface[models.User] {
+func applyUserOrder(q gorm.ChainInterface[models.UserUser], orderBy int32, descending bool) gorm.ChainInterface[models.UserUser] {
 	switch orderBy {
 	case sortFieldCreatedAt:
 		if descending {
-			return q.Order(generated.User.CreatedAt.Desc()).Order(generated.User.ID.Desc())
+			return q.Order(generated.UserUser.CreatedAt.Desc()).Order(generated.UserUser.ID.Desc())
 		}
-		return q.Order(generated.User.CreatedAt).Order(generated.User.ID)
+		return q.Order(generated.UserUser.CreatedAt).Order(generated.UserUser.ID)
 	case sortFieldUpdatedAt:
 		if descending {
-			return q.Order(generated.User.UpdatedAt.Desc()).Order(generated.User.ID.Desc())
+			return q.Order(generated.UserUser.UpdatedAt.Desc()).Order(generated.UserUser.ID.Desc())
 		}
-		return q.Order(generated.User.UpdatedAt).Order(generated.User.ID)
+		return q.Order(generated.UserUser.UpdatedAt).Order(generated.UserUser.ID)
 	case sortFieldLastLoginAt:
 		if descending {
-			return q.Order(generated.User.LastLoginAt.Desc()).Order(generated.User.ID.Desc())
+			return q.Order(generated.UserUser.LastLoginAt.Desc()).Order(generated.UserUser.ID.Desc())
 		}
-		return q.Order(generated.User.LastLoginAt).Order(generated.User.ID)
+		return q.Order(generated.UserUser.LastLoginAt).Order(generated.UserUser.ID)
 	default:
 		if descending {
-			return q.Order(generated.User.ID.Desc())
+			return q.Order(generated.UserUser.ID.Desc())
 		}
-		return q.Order(generated.User.ID)
+		return q.Order(generated.UserUser.ID)
 	}
 }
 
@@ -345,12 +345,12 @@ func applyUserOrder(q gorm.ChainInterface[models.User], orderBy int32, descendin
 // only afterID is set the cursor degrades to id-only (correct only for
 // the default ID-ascending sort).
 func applyUserCursor(
-	q gorm.ChainInterface[models.User],
+	q gorm.ChainInterface[models.UserUser],
 	orderBy int32,
 	descending bool,
 	afterID int64,
 	afterCreatedAt, afterUpdatedAt, afterLastLoginAt *time.Time,
-) gorm.ChainInterface[models.User] {
+) gorm.ChainInterface[models.UserUser] {
 	if afterID == 0 {
 		return q
 	}

@@ -13,8 +13,8 @@ require (
 	github.com/redis/go-redis/v9 v9.20.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/servekit/gid-service v0.0.0-20260904101455-50bc5a3f8aa5
-	github.com/servekit/go-common v0.0.0-20260904101207-39630b2b22cc
-	github.com/servekit/message-service v0.0.0-20260904102231-3626ecab0ab3
+	github.com/servekit/go-common v0.0.0-20260906125735-1aee64b7710e
+	github.com/servekit/message-service v0.0.0-20260906125833-92a1b776c02d
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.56.0
 	golang.org/x/oauth2 v0.36.0
@@ -108,7 +108,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
-	github.com/servekit/api/gen/go v0.0.0-20260906050558-9a43200f5662
+	github.com/servekit/api/gen/go v0.0.0-20260906125712-e0bb0334f188
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sony/sonyflake/v2 v2.1.0 // indirect

@@ -15,13 +15,10 @@ var UserAuthLog = struct {
 	Action     field.Number[int32]
 	Method     field.Number[int32]
 	Success    field.Bool
-	FailReason field.String
+	FailReason field.Number[int32]
 	Target     field.String
 	IP         field.String
 	UserAgent  field.String
-	DeviceType field.Number[int32]
-	OS         field.String
-	Browser    field.String
 	Country    field.String
 	City       field.String
 	CreatedAt  field.Time
@@ -35,13 +32,10 @@ var UserAuthLog = struct {
 	Action:     field.Number[int32]{}.WithColumn("action"),
 	Method:     field.Number[int32]{}.WithColumn("method"),
 	Success:    field.Bool{}.WithColumn("success"),
-	FailReason: field.String{}.WithColumn("fail_reason"),
+	FailReason: field.Number[int32]{}.WithColumn("fail_reason"),
 	Target:     field.String{}.WithColumn("target"),
 	IP:         field.String{}.WithColumn("ip"),
 	UserAgent:  field.String{}.WithColumn("user_agent"),
-	DeviceType: field.Number[int32]{}.WithColumn("device_type"),
-	OS:         field.String{}.WithColumn("os"),
-	Browser:    field.String{}.WithColumn("browser"),
 	Country:    field.String{}.WithColumn("country"),
 	City:       field.String{}.WithColumn("city"),
 	CreatedAt:  field.Time{}.WithColumn("created_at"),

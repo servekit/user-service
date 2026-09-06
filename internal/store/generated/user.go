@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var User = struct {
+var UserUser = struct {
 	ID             field.Number[int64]
 	Username       field.String
 	Nickname       field.String

@@ -3,7 +3,7 @@ package models
 // AllModels returns all GORM models for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&User{},
+		&UserUser{},
 		&UserIdentity{},
 		&UserSession{},
 		&UserAuthLog{},
@@ -13,9 +13,9 @@ func AllModels() []any {
 		&UserRoleMapping{},
 		&UserPermission{},
 		&UserPermissionGroup{},
-		&PermissionGroupItemMapping{},
-		&RolePermissionMapping{},
-		&RolePermissionGroupMapping{},
-		&GroupRoleMapping{},
+		&UserPermissionGroupItemMapping{},
+		&UserRolePermissionMapping{},
+		&UserRolePermissionGroupMapping{},
+		&UserGroupRoleMapping{},
 	}
 }

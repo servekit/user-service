@@ -725,7 +725,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 
 	// New user — register with phone + miniprogram identities.
 	sessionID := uuid.New().String()
-	var user *models.User
+	var user *models.UserUser
 
 	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
@@ -733,7 +733,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		user = &models.User{
+		user = &models.UserUser{
 			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
 			RegionCode:     regionCode,
@@ -764,11 +764,8 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
-			LoginMethod: mpProvider.String(), LoginTarget: result.ProviderUID, Device: ci.Device,
+			Method: 0, Provider: int32(mpProvider), Target: result.ProviderUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
-			DeviceType: common.LoginDeviceType(ci),
-			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
@@ -776,7 +773,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		uid := user.ID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(pb.IdentityProvider_IDENTITY_PROVIDER_PHONE), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true, Target: result.ProviderUID,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			IP: ci.IP, UserAgent: ci.UserAgent,
 		}); err != nil {
 			return err
 		}
@@ -785,8 +782,8 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: user.ID, LoginMethod: mpProvider.String(), LoginAt: now, LoginTarget: result.ProviderUID,
-			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+			UserID: user.ID, Method: 0, Provider: int32(mpProvider), LoginAt: now, LoginTarget: result.ProviderUID,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, Device: ci.Device,
 		})
 	}); err != nil {
 		return nil, err
@@ -874,7 +871,7 @@ func validateRedirectURL(provider, raw string) error {
 // registerAndLogin creates a new user from social login and returns a login response.
 func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityProvider, result *identity.SocialResult) (*pb.LoginResponse, error) {
 	sessionID := uuid.New().String()
-	var user *models.User
+	var user *models.UserUser
 
 	userID, err := gidservice.NextID(ctx, s.gid)
 	if err != nil {
@@ -882,7 +879,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		user = &models.User{
+		user = &models.UserUser{
 			Nickname:       common.FirstNonEmpty(result.Nickname, "user"),
 			AvatarURL:      result.AvatarURL,
 			Status:         int32(pb.UserStatus_USER_STATUS_ACTIVE),
@@ -909,11 +906,8 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
-			LoginMethod: providerID.String(), LoginTarget: result.ProviderUID, Device: ci.Device,
+			Method: 0, Provider: int32(providerID), Target: result.ProviderUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
-			DeviceType: common.LoginDeviceType(ci),
-			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
@@ -921,7 +915,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		uid := user.ID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(pb.LoginAction_LOGIN_ACTION_SOCIAL_REGISTER), Success: true,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			IP: ci.IP, UserAgent: ci.UserAgent,
 		}); err != nil {
 			return err
 		}
@@ -930,8 +924,8 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: user.ID, LoginMethod: providerID.String(), LoginAt: now, LoginTarget: result.ProviderUID,
-			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+			UserID: user.ID, Method: 0, Provider: int32(providerID), LoginAt: now, LoginTarget: result.ProviderUID,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, Device: ci.Device,
 		})
 	}); err != nil {
 		return nil, err
@@ -952,11 +946,8 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: userID,
-			LoginMethod: providerID.String(), LoginTarget: targetUID, Device: ci.Device,
+			Method: 0, Provider: int32(providerID), Target: targetUID, Device: ci.Device,
 			IP: ci.IP, UserAgent: ci.UserAgent,
-			DeviceType: common.LoginDeviceType(ci),
-			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
@@ -964,7 +955,7 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		uid := userID
 		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(action), Success: true, Target: targetUID,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			IP: ci.IP, UserAgent: ci.UserAgent,
 		}); err != nil {
 			return err
 		}
@@ -973,8 +964,8 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: userID, LoginMethod: providerID.String(), LoginAt: now, LoginTarget: targetUID,
-			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+			UserID: userID, Method: 0, Provider: int32(providerID), LoginAt: now, LoginTarget: targetUID,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, Device: ci.Device,
 		})
 	})
 	if err != nil {

@@ -275,7 +275,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 		targetKey = phoneutil.CaptchaKey(phoneutil.NormalizeRegionCode(req.RegionCode), phoneutil.NormalizePhone(req.Phone))
 	}
 
-	var user *models.User
+	var user *models.UserUser
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if hasEmail {
 			if existing, err := dal.GetUserByEmail(ctx, tx, req.Email); err == nil && existing != nil {
@@ -301,15 +301,15 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 			}
 		}
 
-		user = &models.User{
+		user = &models.UserUser{
 			Username:       common.PtrIfNonEmpty(req.Username),
 			Nickname:       common.FirstNonEmpty(req.Nickname, req.Username, "user"),
 			RealName:       req.RealName,
 			RegionCode:     phoneutil.NormalizeRegionCode(req.RegionCode),
 			Phone:          ptr.Ref(phoneutil.NormalizePhone(req.Phone)),
 			Gender:         int32(req.Gender),
-			Timezone:       common.FirstNonEmpty(req.Timezone, "Asia/Shanghai"),
-			Locale:         common.FirstNonEmpty(req.Locale, "zh-CN"),
+			Timezone:       req.Timezone,
+			Locale:         req.Locale,
 			Status:         int32(pb.UserStatus_USER_STATUS_PENDING_REVIEW),
 			RegisterSource: int32(pb.IdentityProvider_IDENTITY_PROVIDER_ADMIN),
 			UserType:       int32(req.UserType),
@@ -599,11 +599,11 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 			Provider:   pb.IdentityProvider(l.Provider),
 			Action:     pb.LoginAction(l.Action),
 			Success:    l.Success,
-			FailReason: l.FailReason,
+			FailReason: pb.LoginFailReason(l.FailReason),
 			Ip:         l.IP,
 			Method:     pb.LoginMethod(l.Method),
 			Target:     l.Target,
-			DeviceType: pb.DeviceType(l.DeviceType),
+			DeviceType: pb.DeviceType(common.DeviceTypeFromUA(l.UserAgent)),
 			Os:         osName,
 			Browser:    browser,
 			CreatedAt:  timestamppb.New(l.CreatedAt),
@@ -755,9 +755,6 @@ func (s *Service) BindIdentity(ctx context.Context, req *pb.BindIdentityRequest)
 // carries the caller's user_id). Deleting the last credential-bearing
 // identity is refused — otherwise the user could lock themselves out.
 func (s *Service) UnbindIdentity(ctx context.Context, req *pb.UnbindIdentityRequest) (*emptypb.Empty, error) {
-	if s.captcha == nil {
-		return nil, xcodes.ErrInternal.New("captcha not configured")
-	}
 	if req.UserId <= 0 {
 		return nil, xcodes.ErrBadRequest.New("user_id is required")
 	}
@@ -775,35 +772,50 @@ func (s *Service) UnbindIdentity(ctx context.Context, req *pb.UnbindIdentityRequ
 		return nil, xcodes.ErrForbidden.New("identity does not belong to the caller")
 	}
 
-	// Determine channel + purpose from the identity provider.
-	var (
-		channel pb.VerificationChannel
-		purpose pb.VerificationPurpose
-	)
+	// EMAIL/PHONE identities carry a locally verifiable target, so unbinding
+	// demands a code sent to it. OAuth identities hold no local secret — the
+	// credentials live at the IdP — so the caller's authenticated session
+	// (ownership checked above) is the proof; no code round-trip. ADMIN is a
+	// creation-source audit tag, not a real identity: never unbindable.
 	switch pb.IdentityProvider(ident.Provider) {
-	case pb.IdentityProvider_IDENTITY_PROVIDER_EMAIL:
-		channel = pb.VerificationChannel_VERIFICATION_CHANNEL_EMAIL
-		purpose = pb.VerificationPurpose_VERIFICATION_PURPOSE_VERIFY_EMAIL
-	case pb.IdentityProvider_IDENTITY_PROVIDER_PHONE:
-		channel = pb.VerificationChannel_VERIFICATION_CHANNEL_SMS
-		purpose = pb.VerificationPurpose_VERIFICATION_PURPOSE_VERIFY_PHONE
+	case pb.IdentityProvider_IDENTITY_PROVIDER_EMAIL, pb.IdentityProvider_IDENTITY_PROVIDER_PHONE:
+		if s.captcha == nil {
+			return nil, xcodes.ErrInternal.New("captcha not configured")
+		}
+		var (
+			channel pb.VerificationChannel
+			purpose pb.VerificationPurpose
+		)
+		if ident.Provider == int32(pb.IdentityProvider_IDENTITY_PROVIDER_EMAIL) {
+			channel = pb.VerificationChannel_VERIFICATION_CHANNEL_EMAIL
+			purpose = pb.VerificationPurpose_VERIFICATION_PURPOSE_VERIFY_EMAIL
+		} else {
+			channel = pb.VerificationChannel_VERIFICATION_CHANNEL_SMS
+			purpose = pb.VerificationPurpose_VERIFICATION_PURPOSE_VERIFY_PHONE
+		}
+		codeResult, err := s.captcha.Verify(ctx, ident.ProviderUID, req.Code,
+			strconv.Itoa(int(purpose)),
+			strconv.Itoa(int(channel)),
+		)
+		if err != nil {
+			return nil, xcodes.ErrBadRequest.Wrap(err)
+		}
+		if !codeResult.Matched {
+			return nil, xcodes.ErrBadRequest.New("invalid verification code")
+		}
+	case pb.IdentityProvider_IDENTITY_PROVIDER_GITHUB,
+		pb.IdentityProvider_IDENTITY_PROVIDER_GOOGLE,
+		pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT,
+		pb.IdentityProvider_IDENTITY_PROVIDER_WECHAT_MINIPROGRAM,
+		pb.IdentityProvider_IDENTITY_PROVIDER_APPLE:
+		// No code verification — the authenticated session is the proof.
 	default:
-		return nil, xcodes.ErrBadRequest.New("only EMAIL or PHONE identities can be unbound")
-	}
-
-	codeResult, err := s.captcha.Verify(ctx, ident.ProviderUID, req.Code,
-		strconv.Itoa(int(purpose)),
-		strconv.Itoa(int(channel)),
-	)
-	if err != nil {
-		return nil, xcodes.ErrBadRequest.Wrap(err)
-	}
-	if !codeResult.Matched {
-		return nil, xcodes.ErrBadRequest.New("invalid verification code")
+		return nil, xcodes.ErrBadRequest.New("identity type cannot be unbound")
 	}
 
 	// Refuse to remove the last credential-bearing identity — that would
-	// lock the user out of password login.
+	// lock the user out of password login — and the last identity of ANY
+	// kind (a social-only user would otherwise strand their account).
 	idents, err := dal.ListIdentitiesByUserID(ctx, s.db, ident.UserID)
 	if err != nil {
 		return nil, err
@@ -813,6 +825,9 @@ func (s *Service) UnbindIdentity(ctx context.Context, req *pb.UnbindIdentityRequ
 		if id.Credentials != "" {
 			credentialCount++
 		}
+	}
+	if len(idents) <= 1 {
+		return nil, xcodes.ErrBadRequest.New("cannot remove the last identity")
 	}
 	if ident.Credentials != "" && credentialCount <= 1 {
 		return nil, xcodes.ErrBadRequest.New("cannot remove the last credential identity")

@@ -84,12 +84,22 @@ func RevokeSession(ctx context.Context, tx *gorm.DB, id string) error {
 	return nil
 }
 
-// RevokeAllUserSessions revokes all active sessions for a user.
-func RevokeAllUserSessions(ctx context.Context, tx *gorm.DB, userID int64) error {
+// RevokeSessionsByIDs stamps revoked_at on exactly the named sessions. The
+// caller passes the session IDs Redis still reports as live, so tombstones of
+// sessions that already lapsed (RevokedAt NULL, Redis evicted) keep reading
+// EXPIRED in the history view — a user-scoped UPDATE over RevokedAt IS NULL
+// used to rewrite them as explicit logouts. Idempotent: rows already revoked
+// or absent are untouched. The timestamp is bound app-side (one value for the
+// whole statement) rather than dialect NOW() so the query stays portable to
+// the sqlite test harness.
+func RevokeSessionsByIDs(ctx context.Context, tx *gorm.DB, sessionIDs []string) error {
+	if len(sessionIDs) == 0 {
+		return nil
+	}
 	_, err := gorm.G[models.UserSession](tx).
-		Where(generated.UserSession.UserID.Eq(userID)).
+		Where(generated.UserSession.ID.In(sessionIDs...)).
 		Where(generated.UserSession.RevokedAt.IsNull()).
-		Set(generated.UserSession.RevokedAt.Now()).
+		Set(generated.UserSession.RevokedAt.Set(time.Now())).
 		Update(ctx)
 	if err != nil {
 		return xcodes.ErrInternal.Wrap(err)

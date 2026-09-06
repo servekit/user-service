@@ -3,10 +3,10 @@ package session
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
+	"github.com/servekit/user-service/internal/service/common"
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/pkg/clientinfo"
 	"github.com/servekit/user-service/pkg/xcodes"
@@ -44,16 +44,18 @@ func (s *Service) GetSession(ctx context.Context, req *pb.GetSessionRequest) (*p
 	if err != nil {
 		return nil, err
 	}
+	osName, browser, _ := clientinfo.ParseUA(data.UserAgent)
 	resp := &pb.GetSessionResponse{
-		UserId:      data.UserID,
-		CreatedAt:   timestamppb.New(data.LoginAt),
-		Ip:          data.LoginIP,
-		UserAgent:   data.UserAgent,
-		Os:          data.OS,
-		Browser:     data.Browser,
-		LoginMethod: data.LoginMethod,
-		LoginTarget: data.LoginTarget,
-		Device:      data.Device,
+		UserId:        data.UserID,
+		CreatedAt:     timestamppb.New(data.LoginAt),
+		Ip:            data.LoginIP,
+		UserAgent:     data.UserAgent,
+		Os:            osName,
+		Browser:       browser,
+		LoginMethod:   pb.LoginMethod(data.Method),
+		LoginProvider: pb.IdentityProvider(data.Provider),
+		LoginTarget:   data.LoginTarget,
+		Device:        data.Device,
 	}
 	if ttl > 0 {
 		resp.ExpiresAt = timestamppb.New(time.Now().Add(ttl))
@@ -159,6 +161,8 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 			if !ok {
 				continue // expired between ListByUserID and GetMulti
 			}
+			// os/browser derive from the raw UA at read time.
+			liveOS, liveBrowser, _ := clientinfo.ParseUA(data.UserAgent)
 			lastActive := data.LoginAt
 			if score, ok := expiryScores[sid]; ok {
 				if t := time.Unix(int64(score)-ttlSecs, 0); t.After(lastActive) {
@@ -166,17 +170,18 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 				}
 			}
 			pbSessions = append(pbSessions, &pb.Session{
-				Id:           sid,
-				Ip:           data.LoginIP,
-				DeviceType:   deviceTypeFor(data),
-				Os:           data.OS,
-				Browser:      data.Browser,
-				CreatedAt:    timestamppb.New(data.LoginAt),
-				LastActiveAt: timestamppb.New(lastActive),
-				Status:       pb.SessionStatus_SESSION_STATUS_ACTIVE,
-				LoginMethod:  data.LoginMethod,
-				LoginTarget:  data.LoginTarget,
-				Device:       data.Device,
+				Id:            sid,
+				Ip:            data.LoginIP,
+				DeviceType:    pb.DeviceType(common.DeviceTypeFromUA(data.UserAgent)),
+				Os:            liveOS,
+				Browser:       liveBrowser,
+				CreatedAt:     timestamppb.New(data.LoginAt),
+				LastActiveAt:  timestamppb.New(lastActive),
+				Status:        pb.SessionStatus_SESSION_STATUS_ACTIVE,
+				LoginMethod:   pb.LoginMethod(data.Method),
+				LoginProvider: pb.IdentityProvider(data.Provider),
+				LoginTarget:   data.LoginTarget,
+				Device:        data.Device,
 			})
 		}
 	}
@@ -214,21 +219,23 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		nextCursor = strconv.FormatInt(history[len(history)-1].CreatedAt.UnixNano(), 10)
 	}
 	for _, r := range history {
+		histOS, histBrowser, _ := clientinfo.ParseUA(r.UserAgent)
 		status := pb.SessionStatus_SESSION_STATUS_EXPIRED
 		if r.RevokedAt != nil {
 			status = pb.SessionStatus_SESSION_STATUS_REVOKED
 		}
 		pbSess := &pb.Session{
-			Id:          r.ID,
-			Ip:          r.IP,
-			DeviceType:  pb.DeviceType(r.DeviceType),
-			Os:          r.OS,
-			Browser:     r.Browser,
-			CreatedAt:   timestamppb.New(r.CreatedAt),
-			Status:      status,
-			LoginMethod: r.LoginMethod,
-			LoginTarget: r.LoginTarget,
-			Device:      r.Device,
+			Id:            r.ID,
+			Ip:            r.IP,
+			DeviceType:    pb.DeviceType(common.DeviceTypeFromUA(r.UserAgent)),
+			Os:            histOS,
+			Browser:       histBrowser,
+			CreatedAt:     timestamppb.New(r.CreatedAt),
+			Status:        status,
+			LoginMethod:   pb.LoginMethod(r.Method),
+			LoginProvider: pb.IdentityProvider(r.Provider),
+			LoginTarget:   r.Target,
+			Device:        r.Device,
 		}
 		// A revoked session's last lifecycle event IS the logout — surface
 		// revoked_at as its final activity time. Lapsed/evicted rows have no
@@ -240,26 +247,6 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	}
 
 	return &pb.ListSessionsResponse{Sessions: pbSessions, NextCursor: nextCursor}, nil
-}
-
-// deviceTypeFor classifies a stored session for the list view. Read-side
-// semantics differ from login-time capture (common.LoginDeviceType): a
-// session with NO captured environment is a legacy row from before client
-// capture existed — UNSPECIFIED ("unknown") — not an API client, which only
-// login-time capture can conclude.
-func deviceTypeFor(data *Data) pb.DeviceType {
-	switch {
-	case strings.Contains(data.OS, "iOS"):
-		return pb.DeviceType_DEVICE_TYPE_IOS
-	case strings.Contains(data.OS, "Android"):
-		return pb.DeviceType_DEVICE_TYPE_ANDROID
-	case clientinfo.IsApiClient(data.UserAgent):
-		return pb.DeviceType_DEVICE_TYPE_API
-	case data.UserAgent != "":
-		return pb.DeviceType_DEVICE_TYPE_WEB
-	default:
-		return pb.DeviceType_DEVICE_TYPE_UNSPECIFIED
-	}
 }
 
 // RevokeSession revokes a specific session.
@@ -276,10 +263,13 @@ func (s *Service) RevokeSession(ctx context.Context, req *pb.RevokeSessionReques
 	return &emptypb.Empty{}, nil
 }
 
-// RevokeAllSessions revokes all sessions for the current user.
+// RevokeAllSessions revokes all sessions for the current user. The caller's
+// current session (exclude_session_id, injected at the edge) stays alive —
+// "log out other devices"; empty excludes revokes everything (the password
+// change/reset and disable flows).
 func (s *Service) RevokeAllSessions(ctx context.Context, req *pb.RevokeAllSessionsRequest) (*emptypb.Empty, error) {
 	userID := req.GetUserId()
-	if err := s.revokeAllSessions(ctx, userID); err != nil {
+	if err := s.revokeAllSessions(ctx, userID, req.GetExcludeSessionId()); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
@@ -306,22 +296,38 @@ func (s *Service) revokeSession(ctx context.Context, sessionID string, userID in
 	})
 }
 
-// revokeAllSessions revokes all sessions for a user in both DB and Redis.
-// See revokeSession for the atomicity contract.
-func (s *Service) revokeAllSessions(ctx context.Context, userID int64) error {
+// revokeAllSessions revokes every LIVE session for a user in both DB and
+// Redis, optionally sparing excludeSessionID (the caller's current session —
+// its Redis key, ZSET entry and PG row all stay untouched). The PG stamp
+// targets exactly the IDs Redis reports as live at the start of the call —
+// tombstones of sessions that already lapsed (RevokedAt NULL, Redis evicted)
+// keep reading EXPIRED in the history view instead of being rewritten as
+// explicit logouts. See revokeSession for the atomicity contract.
+func (s *Service) revokeAllSessions(ctx context.Context, userID int64, excludeSessionID string) error {
+	sessionIDs, _, err := s.sessionMgr.ListByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	stampIDs := make([]string, 0, len(sessionIDs))
+	for _, id := range sessionIDs {
+		if id != excludeSessionID {
+			stampIDs = append(stampIDs, id)
+		}
+	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := dal.RevokeAllUserSessions(ctx, tx, userID); err != nil {
+		if err := dal.RevokeSessionsByIDs(ctx, tx, stampIDs); err != nil {
 			return err
 		}
-		return s.sessionMgr.RevokeAll(ctx, userID)
+		return s.sessionMgr.RevokeAll(ctx, userID, excludeSessionID)
 	})
 }
 
 // RevokeAllByUserID is the non-RPC entry point used by other subpackages (e.g.
-// user.Service.DisableUser) to immediately invalidate every active session
-// for a user without going through the RevokeAllSessions proto RPC.
+// user.Service.ChangePassword/DisableUser) to immediately invalidate every
+// active session for a user without going through the RevokeAllSessions
+// proto RPC. No exclusion — administrative revocation kills everything.
 func (s *Service) RevokeAllByUserID(ctx context.Context, userID int64) error {
-	return s.revokeAllSessions(ctx, userID)
+	return s.revokeAllSessions(ctx, userID, "")
 }
 
 // --- duplicated helpers (cross-file deps, copied from package service) ---

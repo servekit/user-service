@@ -12,8 +12,8 @@ import (
 
 // AddPermissionToGroup adds a permission to a permission group.
 func AddPermissionToGroup(ctx context.Context, tx *gorm.DB, groupID, permissionID int64) error {
-	item := &models.PermissionGroupItemMapping{PermissionGroupID: groupID, PermissionID: permissionID}
-	if err := gorm.G[models.PermissionGroupItemMapping](tx).Create(ctx, item); err != nil {
+	item := &models.UserPermissionGroupItemMapping{PermissionGroupID: groupID, PermissionID: permissionID}
+	if err := gorm.G[models.UserPermissionGroupItemMapping](tx).Create(ctx, item); err != nil {
 		return xcodes.ErrInternal.Wrap(err)
 	}
 	return nil
@@ -28,9 +28,9 @@ func AddPermissionToGroup(ctx context.Context, tx *gorm.DB, groupID, permissionI
 // overlaps the old).
 func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permissionID int64) error {
 	result := tx.WithContext(ctx).
-		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
-		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
-		Delete(&models.PermissionGroupItemMapping{})
+		Where(generated.UserPermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
+		Where(generated.UserPermissionGroupItemMapping.PermissionID.Eq(permissionID)).
+		Delete(&models.UserPermissionGroupItemMapping{})
 	if result.Error != nil {
 		return xcodes.ErrInternal.Wrap(result.Error)
 	}
@@ -39,8 +39,8 @@ func RemovePermissionFromGroup(ctx context.Context, tx *gorm.DB, groupID, permis
 
 // ListPermissionGroupIDsByItemPermissionID returns the group IDs that contain a permission.
 func ListPermissionGroupIDsByItemPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) ([]int64, error) {
-	results, err := gorm.G[models.PermissionGroupItemMapping](tx).
-		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
+	results, err := gorm.G[models.UserPermissionGroupItemMapping](tx).
+		Where(generated.UserPermissionGroupItemMapping.PermissionID.Eq(permissionID)).
 		Find(ctx)
 	if err != nil {
 		return nil, xcodes.ErrInternal.Wrap(err)
@@ -56,8 +56,8 @@ func ListPermissionGroupIDsByItemPermissionID(ctx context.Context, tx *gorm.DB, 
 // of a permission (cascade cleanup when the permission is deleted). Hard-deletes.
 func DeletePermissionGroupItemMappingsByPermissionID(ctx context.Context, tx *gorm.DB, permissionID int64) error {
 	result := tx.WithContext(ctx).
-		Where(generated.PermissionGroupItemMapping.PermissionID.Eq(permissionID)).
-		Delete(&models.PermissionGroupItemMapping{})
+		Where(generated.UserPermissionGroupItemMapping.PermissionID.Eq(permissionID)).
+		Delete(&models.UserPermissionGroupItemMapping{})
 	if result.Error != nil {
 		return xcodes.ErrInternal.Wrap(result.Error)
 	}
@@ -68,8 +68,8 @@ func DeletePermissionGroupItemMappingsByPermissionID(ctx context.Context, tx *go
 // (cascade cleanup when the group is deleted). Hard-deletes.
 func DeletePermissionGroupItemMappingsByGroupID(ctx context.Context, tx *gorm.DB, groupID int64) error {
 	result := tx.WithContext(ctx).
-		Where(generated.PermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
-		Delete(&models.PermissionGroupItemMapping{})
+		Where(generated.UserPermissionGroupItemMapping.PermissionGroupID.Eq(groupID)).
+		Delete(&models.UserPermissionGroupItemMapping{})
 	if result.Error != nil {
 		return xcodes.ErrInternal.Wrap(result.Error)
 	}

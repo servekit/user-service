@@ -51,12 +51,12 @@ func GetUserPermissionByResourceAction(ctx context.Context, tx *gorm.DB, resourc
 }
 
 // ListUserPermissionsByPermissionGroupID returns all permissions in a permission group.
-// PermissionGroupItemMapping is hard-deleted (no deleted_at column), so the JOIN
+// UserPermissionGroupItemMapping is hard-deleted (no deleted_at column), so the JOIN
 // needs no soft-delete filter; the FROM table (UserPermission) is still auto-filtered
 // by GORM for its own soft-delete.
 func ListUserPermissionsByPermissionGroupID(ctx context.Context, tx *gorm.DB, groupID int64) ([]*models.UserPermission, error) {
 	permTable := resolveTableName(tx, &models.UserPermission{})
-	pgiTable := resolveTableName(tx, &models.PermissionGroupItemMapping{})
+	pgiTable := resolveTableName(tx, &models.UserPermissionGroupItemMapping{})
 	results, err := gorm.G[models.UserPermission](tx).
 		Raw(fmt.Sprintf(`SELECT %s.* FROM %s JOIN %s ON %s.permission_id = %s.id WHERE %s.permission_group_id = ?`,
 			permTable, permTable,

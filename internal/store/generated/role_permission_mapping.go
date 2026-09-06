@@ -6,7 +6,7 @@ import (
 	"gorm.io/cli/gorm/field"
 )
 
-var RolePermissionMapping = struct {
+var UserRolePermissionMapping = struct {
 	ID           field.Number[int64]
 	RoleID       field.Number[int64]
 	PermissionID field.Number[int64]
