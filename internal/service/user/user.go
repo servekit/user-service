@@ -341,13 +341,26 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*p
 	return &pb.CreateUserResponse{User: common.ConvertUser(user)}, nil
 }
 
-// GetUser returns a user by ID (admin).
+// GetUser returns a user by ID (admin). The registration environment
+// (register_ip/register_agent + derived register_device) is enriched here
+// only — a PK-point lookup on the 1:1 profile table; every other User read
+// path leaves those fields zero (spec 2026-09-06 §7).
 func (s *Service) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
 	user, err := dal.GetUserByID(ctx, s.db, req.UserId)
 	if err != nil {
 		return nil, err
 	}
-	return common.ConvertUser(user), nil
+	out := common.ConvertUser(user)
+	profile, err := dal.GetRegisterProfileByUserID(ctx, s.db, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if profile != nil {
+		out.RegisterIp = profile.IP
+		out.RegisterAgent = profile.UserAgent
+		out.RegisterDevice = pb.DeviceType(common.DeviceTypeFromUA(profile.UserAgent))
+	}
+	return out, nil
 }
 
 // ListUsers returns a paginated list of users (admin).

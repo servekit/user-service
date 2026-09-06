@@ -147,3 +147,41 @@ func TestService_CreateUser_EmptyRegisterEnv(t *testing.T) {
 		t.Fatalf("admin-create profile = %+v, want empty-env row", prof)
 	}
 }
+
+func TestService_GetUser_ExposesRegisterEnv(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode (requires Docker)")
+	}
+	ctx := envCtx(context.Background())
+	svc, cap := newEnvTestService(t)
+
+	const email = "env-detail@example.com"
+	captchaID, code := seedRegisterCaptcha(t, ctx, cap, email)
+	regResp, err := svc.Register(ctx, &pb.RegisterRequest{
+		Provider: pb.IdentityProvider_IDENTITY_PROVIDER_EMAIL, Email: email,
+		Code: code, CaptchaId: captchaID, Password: "S3cure-pass!", Nickname: "envdetail",
+	})
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	got, err := svc.GetUser(ctx, &pb.GetUserRequest{UserId: regResp.GetUser().GetId()})
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if got.GetRegisterIp() != "203.0.113.7" || got.GetRegisterAgent() == "" {
+		t.Fatalf("GetUser env = %q/%q, want captured register environment", got.GetRegisterIp(), got.GetRegisterAgent())
+	}
+	if got.GetRegisterDevice() != pb.DeviceType_DEVICE_TYPE_IOS {
+		t.Fatalf("GetUser register_device = %v, want derived IOS from iPhone UA", got.GetRegisterDevice())
+	}
+
+	// GetProfile (self-view) must NOT leak the environment.
+	prof, err := svc.GetProfile(ctx, &pb.GetProfileRequest{UserId: regResp.GetUser().GetId()})
+	if err != nil {
+		t.Fatalf("GetProfile: %v", err)
+	}
+	if prof.GetRegisterIp() != "" || prof.GetRegisterAgent() != "" || prof.GetRegisterDevice() != pb.DeviceType_DEVICE_TYPE_UNSPECIFIED {
+		t.Fatalf("GetProfile leaked register env: %q/%q/%v", prof.GetRegisterIp(), prof.GetRegisterAgent(), prof.GetRegisterDevice())
+	}
+}
