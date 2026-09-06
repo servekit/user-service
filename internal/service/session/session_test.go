@@ -87,14 +87,14 @@ func TestListSessions_MergedView(t *testing.T) {
 	if got := second.GetLastActiveAt(); got == nil || got.AsTime().Sub(revoked) > time.Minute {
 		t.Errorf("revoked last-active = %v, want ≈ revoked_at %v", got, revoked)
 	}
-	// …lapsed rows stay unset (no knowable moment).
-	if third.GetLastActiveAt() != nil {
-		t.Errorf("lapsed last-active should be unset, got %v", third.GetLastActiveAt())
-	}
 
 	third := resp.GetSessions()[2]
 	if third.GetId() != "pg-lapsed" || third.GetStatus() != pb.SessionStatus_SESSION_STATUS_EXPIRED {
 		t.Errorf("third row = %s/%v, want pg-lapsed/EXPIRED", third.GetId(), third.GetStatus())
+	}
+	// …lapsed rows stay unset (no knowable moment).
+	if third.GetLastActiveAt() != nil {
+		t.Errorf("lapsed last-active should be unset, got %v", third.GetLastActiveAt())
 	}
 }
 
