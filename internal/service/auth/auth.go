@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -248,6 +249,23 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		}
 		if ident == nil {
 			if req.Method == pb.LoginMethod_LOGIN_METHOD_PHONE_CODE || req.Method == pb.LoginMethod_LOGIN_METHOD_EMAIL_CODE {
+				// Gate auto-registration on the code BEFORE creating anything:
+				// an unverified code must never mint an account + session
+				// (the explicit Register RPC verifies; this path must too).
+				if verr := s.verifyLoginCode(ctx, req); verr != nil {
+					if _, limiterErr := s.loginLimiter.Allow(ctx, "fail", lookupTarget); limiterErr != nil {
+						return nil, xcodes.ErrServiceUnavailable.Wrap(limiterErr)
+					}
+					ci := clientinfo.FromCtx(ctx)
+					if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
+						Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER),
+						Success: false, FailReason: "wrong_code",
+						IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+					}); logErr != nil {
+						// Audit log failure should not mask auth error
+					}
+					return nil, verr
+				}
 				return s.autoRegister(ctx, req.Method, lookupTarget)
 			}
 			return nil, xcodes.ErrIdentityNotFound.New()
@@ -269,12 +287,19 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		if _, limiterErr := s.loginLimiter.Allow(ctx, "fail", lookupTarget); limiterErr != nil {
 			return nil, xcodes.ErrServiceUnavailable.Wrap(limiterErr)
 		}
-		// Record failed login attempt
+		// Record failed login attempt. The reason must name the actual check
+		// that failed — code logins flow through here too.
+		failReason := "verify_failed"
+		if errors.Is(err, xcodes.ErrPasswordWrong.New()) {
+			failReason = "wrong_password"
+		} else if req.Method == pb.LoginMethod_LOGIN_METHOD_EMAIL_CODE || req.Method == pb.LoginMethod_LOGIN_METHOD_PHONE_CODE {
+			failReason = "wrong_code"
+		}
 		userID := ident.UserID
 		failCI := clientinfo.FromCtx(ctx)
 		if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
 			UserID: &userID, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN),
-			Success: false, FailReason: "wrong_password",
+			Success: false, FailReason: failReason,
 			IP: failCI.IP, UserAgent: failCI.UserAgent, DeviceType: common.LoginDeviceType(failCI),
 		}); logErr != nil {
 			// Audit log failure should not mask auth error
@@ -349,27 +374,34 @@ func (s *Service) verifyCredentials(ctx context.Context, req *pb.LoginRequest, i
 
 	case pb.LoginMethod_LOGIN_METHOD_EMAIL_CODE,
 		pb.LoginMethod_LOGIN_METHOD_PHONE_CODE:
-		_, captchaKey := resolveLoginTarget(req)
-		if captchaKey == "" {
-			return xcodes.ErrBadRequest.New("email or region_code+phone is required")
-		}
-		channel := methodToChannel(req.Method)
-		codeResult, err := s.captcha.Verify(ctx, captchaKey, req.Code,
-			purposeKey(pb.VerificationPurpose_VERIFICATION_PURPOSE_LOGIN),
-			channelKey(channel),
-			captcha.WithCaptchaID(req.CaptchaId),
-		)
-		if err != nil {
-			return xcodes.ErrBadRequest.Wrap(err)
-		}
-		if !codeResult.Matched {
-			return xcodes.ErrBadRequest.New("invalid verification code")
-		}
-		return nil
+		return s.verifyLoginCode(ctx, req)
 
 	default:
 		return xcodes.ErrBadRequest.New("unsupported login method")
 	}
+}
+
+// verifyLoginCode checks the one-time code for code-based login methods.
+// Shared by the existing-identity path (verifyCredentials) and the
+// auto-registration gate.
+func (s *Service) verifyLoginCode(ctx context.Context, req *pb.LoginRequest) error {
+	_, captchaKey := resolveLoginTarget(req)
+	if captchaKey == "" {
+		return xcodes.ErrBadRequest.New("email or region_code+phone is required")
+	}
+	channel := methodToChannel(req.Method)
+	codeResult, err := s.captcha.Verify(ctx, captchaKey, req.Code,
+		purposeKey(pb.VerificationPurpose_VERIFICATION_PURPOSE_LOGIN),
+		channelKey(channel),
+		captcha.WithCaptchaID(req.CaptchaId),
+	)
+	if err != nil {
+		return xcodes.ErrBadRequest.Wrap(err)
+	}
+	if !codeResult.Matched {
+		return xcodes.ErrBadRequest.New("invalid verification code")
+	}
+	return nil
 }
 
 // autoRegister creates a new user and identity for code-based login (phone/email code).
