@@ -20,11 +20,20 @@ func CreateLoginLog(ctx context.Context, tx *gorm.DB, log *models.UserLoginLog) 
 	return nil
 }
 
-// ListLoginLogsByUserID returns a paginated list of login logs for a user.
-func ListLoginLogsByUserID(ctx context.Context, tx *gorm.DB, userID int64, cursor string, pageSize int32) ([]*models.UserLoginLog, string, error) {
+// ListLoginLogs returns a cursor-paginated list of login logs, newest first.
+// userID 0 and provider 0 mean "no filter on that column" (the audit view
+// defaults to all users); success is not filterable here because a proto3
+// bool cannot distinguish "failed" from "not filtering".
+func ListLoginLogs(ctx context.Context, tx *gorm.DB, userID int64, provider int32, cursor string, pageSize int32) ([]*models.UserLoginLog, string, error) {
 	q := gorm.G[models.UserLoginLog](tx).
-		Where(generated.UserLoginLog.UserID.Eq(userID)).
 		Order(generated.UserLoginLog.ID.Desc())
+
+	if userID != 0 {
+		q = q.Where(generated.UserLoginLog.UserID.Eq(userID))
+	}
+	if provider != 0 {
+		q = q.Where(generated.UserLoginLog.Provider.Eq(provider))
+	}
 
 	if cursor != "" {
 		cursorID, err := strconv.ParseInt(cursor, 10, 64)
