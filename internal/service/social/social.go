@@ -767,13 +767,13 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
 
 		uid := user.ID
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(pb.IdentityProvider_IDENTITY_PROVIDER_PHONE), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
 			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
@@ -911,13 +911,13 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
 
 		uid := user.ID
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(pb.LoginAction_LOGIN_ACTION_SOCIAL_REGISTER), Success: true,
 			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
@@ -953,13 +953,13 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}); err != nil {
 			return err
 		}
 
 		uid := userID
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(action), Success: true,
 			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {

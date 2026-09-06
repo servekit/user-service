@@ -538,7 +538,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 	if pageSize <= 0 {
 		pageSize = 20
 	}
-	logs, nextCursor, err := dal.ListLoginLogs(ctx, s.db, dal.LoginLogFilter{
+	logs, nextCursor, err := dal.ListAuthLogs(ctx, s.db, dal.AuthLogFilter{
 		UserID:   req.UserId,
 		Provider: int32(req.Provider),
 		Action:   int32(req.Action),

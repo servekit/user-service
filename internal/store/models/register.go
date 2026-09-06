@@ -6,7 +6,7 @@ func AllModels() []any {
 		&User{},
 		&UserIdentity{},
 		&UserSession{},
-		&UserLoginLog{},
+		&UserAuthLog{},
 		&UserGroup{},
 		&UserGroupMapping{},
 		&UserRole{},

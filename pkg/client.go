@@ -69,11 +69,6 @@ func (c *Client) Logout(ctx context.Context, in *pb.LogoutRequest) (*emptypb.Emp
 	return c.cli.Logout(ctx, in)
 }
 
-// RefreshSession delegates to the remote user-service.
-func (c *Client) RefreshSession(ctx context.Context, in *pb.RefreshSessionRequest) (*emptypb.Empty, error) {
-	return c.cli.RefreshSession(ctx, in)
-}
-
 // GetOAuthURL delegates to the remote user-service.
 func (c *Client) GetOAuthURL(ctx context.Context, in *pb.GetOAuthURLRequest) (*pb.GetOAuthURLResponse, error) {
 	return c.cli.GetOAuthURL(ctx, in)

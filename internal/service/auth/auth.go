@@ -169,7 +169,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         sessData.OS, Browser: sessData.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
 			return err
@@ -182,7 +182,7 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
 			registerMethod = pb.LoginMethod_LOGIN_METHOD_PHONE_CODE
 		}
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(req.Provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
 			Method: int32(registerMethod),
 			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
@@ -264,7 +264,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 						return nil, xcodes.ErrServiceUnavailable.Wrap(limiterErr)
 					}
 					ci := clientinfo.FromCtx(ctx)
-					if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
+					if logErr := dal.CreateAuthLog(ctx, s.db, &models.UserAuthLog{
 						Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER),
 						Success: false, FailReason: "wrong_code", Method: int32(req.Method),
 						IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
@@ -304,7 +304,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		}
 		userID := ident.UserID
 		failCI := clientinfo.FromCtx(ctx)
-		if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
+		if logErr := dal.CreateAuthLog(ctx, s.db, &models.UserAuthLog{
 			UserID: &userID, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN),
 			Success: false, FailReason: failReason, Method: int32(req.Method),
 			IP: failCI.IP, UserAgent: failCI.UserAgent, DeviceType: common.LoginDeviceType(failCI),
@@ -340,14 +340,14 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         sessData.OS, Browser: sessData.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
 			return err
 		}
 
 		uid := user.ID
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN), Success: true,
 			Method: int32(req.Method),
 			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
@@ -459,14 +459,14 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 			IP: ci.IP, UserAgent: ci.UserAgent,
 			DeviceType: common.LoginDeviceType(ci),
 			OS:         ci.OS, Browser: ci.Browser,
-			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
+			ExpiresAt: now.Add(s.sessionMgr.TTL()),
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
 			return err
 		}
 
 		uid := user.ID
-		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
+		if err := dal.CreateAuthLog(ctx, tx, &models.UserAuthLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
 			Method: int32(method),
 			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),

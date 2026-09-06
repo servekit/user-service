@@ -206,11 +206,6 @@ func (s *Service) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptypb.E
 	return s.auth.Logout(ctx, req)
 }
 
-// RefreshSession delegates to session subpackage.
-func (s *Service) RefreshSession(ctx context.Context, req *pb.RefreshSessionRequest) (*emptypb.Empty, error) {
-	return s.sess.RefreshSession(ctx, req)
-}
-
 // GetOAuthURL delegates to social subpackage.
 func (s *Service) GetOAuthURL(ctx context.Context, req *pb.GetOAuthURLRequest) (*pb.GetOAuthURLResponse, error) {
 	return s.social.GetOAuthURL(ctx, req)

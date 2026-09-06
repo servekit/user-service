@@ -12,17 +12,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateLoginLog inserts a new login log record.
-func CreateLoginLog(ctx context.Context, tx *gorm.DB, log *models.UserLoginLog) error {
-	if err := gorm.G[models.UserLoginLog](tx).Create(ctx, log); err != nil {
+// CreateAuthLog inserts a new login log record.
+func CreateAuthLog(ctx context.Context, tx *gorm.DB, log *models.UserAuthLog) error {
+	if err := gorm.G[models.UserAuthLog](tx).Create(ctx, log); err != nil {
 		return xcodes.ErrInternal.Wrap(err)
 	}
 	return nil
 }
 
-// LoginLogFilter narrows a ListLoginLogs query; zero values mean no filter
+// AuthLogFilter narrows a ListAuthLogs query; zero values mean no filter
 // on that column (Success nil = both outcomes).
-type LoginLogFilter struct {
+type AuthLogFilter struct {
 	UserID   int64
 	Provider int32
 	Action   int32
@@ -30,25 +30,25 @@ type LoginLogFilter struct {
 	Success  *bool
 }
 
-// ListLoginLogs returns a cursor-paginated list of login logs, newest first.
-func ListLoginLogs(ctx context.Context, tx *gorm.DB, f LoginLogFilter, cursor string, pageSize int32) ([]*models.UserLoginLog, string, error) {
-	q := gorm.G[models.UserLoginLog](tx).
-		Order(generated.UserLoginLog.ID.Desc())
+// ListAuthLogs returns a cursor-paginated list of login logs, newest first.
+func ListAuthLogs(ctx context.Context, tx *gorm.DB, f AuthLogFilter, cursor string, pageSize int32) ([]*models.UserAuthLog, string, error) {
+	q := gorm.G[models.UserAuthLog](tx).
+		Order(generated.UserAuthLog.ID.Desc())
 
 	if f.UserID != 0 {
-		q = q.Where(generated.UserLoginLog.UserID.Eq(f.UserID))
+		q = q.Where(generated.UserAuthLog.UserID.Eq(f.UserID))
 	}
 	if f.Provider != 0 {
-		q = q.Where(generated.UserLoginLog.Provider.Eq(f.Provider))
+		q = q.Where(generated.UserAuthLog.Provider.Eq(f.Provider))
 	}
 	if f.Action != 0 {
-		q = q.Where(generated.UserLoginLog.Action.Eq(f.Action))
+		q = q.Where(generated.UserAuthLog.Action.Eq(f.Action))
 	}
 	if f.Method != 0 {
-		q = q.Where(generated.UserLoginLog.Method.Eq(f.Method))
+		q = q.Where(generated.UserAuthLog.Method.Eq(f.Method))
 	}
 	if f.Success != nil {
-		q = q.Where(generated.UserLoginLog.Success.Eq(*f.Success))
+		q = q.Where(generated.UserAuthLog.Success.Eq(*f.Success))
 	}
 
 	if cursor != "" {
@@ -56,7 +56,7 @@ func ListLoginLogs(ctx context.Context, tx *gorm.DB, f LoginLogFilter, cursor st
 		if err != nil {
 			return nil, "", xcodes.ErrBadRequest.Wrapf(err, "invalid cursor: %s", cursor)
 		}
-		q = q.Where(generated.UserLoginLog.ID.Lt(cursorID))
+		q = q.Where(generated.UserAuthLog.ID.Lt(cursorID))
 	}
 
 	results, err := q.Limit(int(pageSize) + 1).Find(ctx)
@@ -64,7 +64,7 @@ func ListLoginLogs(ctx context.Context, tx *gorm.DB, f LoginLogFilter, cursor st
 		return nil, "", xcodes.ErrInternal.Wrap(err)
 	}
 
-	logs := make([]*models.UserLoginLog, len(results))
+	logs := make([]*models.UserAuthLog, len(results))
 	for i := range results {
 		logs[i] = &results[i]
 	}

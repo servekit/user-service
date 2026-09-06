@@ -69,12 +69,6 @@ func (h *Handler) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptypb.E
 	return h.svc.Logout(ctx, req)
 }
 
-// RefreshSession extends the session TTL (sliding window). Call from the API
-// gateway on each authenticated request, or periodically from the client.
-func (h *Handler) RefreshSession(ctx context.Context, req *pb.RefreshSessionRequest) (*emptypb.Empty, error) {
-	return h.svc.RefreshSession(ctx, req)
-}
-
 // GetOAuthURL returns the OAuth authorization URL — step 1 of redirect-based
 // OAuth (GitHub/Google/WeChat web/Apple). Step 2 is SocialLogin with the
 // code+state that comes back via redirect_url.

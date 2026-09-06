@@ -28,21 +28,6 @@ func New(db *gorm.DB, sessionMgr *Manager) *Service {
 	}
 }
 
-// RefreshSession extends the current session TTL and updates last_active_at in DB.
-// Uses Validate (single Lua round trip) to read data and renew atomically.
-func (s *Service) RefreshSession(ctx context.Context, req *pb.RefreshSessionRequest) (*emptypb.Empty, error) {
-	sessionID := req.GetSessionId()
-	data, err := s.sessionMgr.Validate(ctx, sessionID)
-	if err != nil {
-		return nil, err
-	}
-	_ = data // only used to verify the session exists; renewal happened in Validate
-	if err := dal.UpdateSessionLastActive(ctx, s.db, sessionID); err != nil {
-		return nil, err
-	}
-	return &emptypb.Empty{}, nil
-}
-
 // GetSession resolves a session_id to its user_id and metadata for the BFF
 // validate-on-use path. Uses Validate, which atomically refreshes the session
 // TTL (the sliding-window mechanism: every authenticated request extends the
@@ -114,7 +99,7 @@ func (s *Service) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessi
 //
 // Uses GetMulti (single MGet round trip) instead of one Get per session. Side
 // effect change: this list view no longer refreshes session TTLs — only
-// validate-on-use paths (Get / GetSession / RefreshSession) do. See
+// validate-on-use paths (Get / GetSession) do. See
 // Manager.GetMulti for the rationale.
 //
 // DeviceType derives from the stored OS/UserAgent (old sessions with no

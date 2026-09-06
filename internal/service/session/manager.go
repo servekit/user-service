@@ -185,7 +185,7 @@ func (m *Manager) RemainingTTL(ctx context.Context, sessionID string) (time.Dura
 //
 // Trade-off vs. Get: GetMulti does NOT refresh TTL. List views do not slide
 // the session window forward — only the validate-on-use path (Get / GetSession
-// / RefreshSession) does. This matches "list ≠ validate" semantics: an admin
+// ) does. This matches "list ≠ validate" semantics: an admin
 // browsing active sessions should not extend them. If a caller does need TTL
 // refresh, use Get instead.
 func (m *Manager) GetMulti(ctx context.Context, sessionIDs []string) (map[string]*Data, error) {

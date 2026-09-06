@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var UserLoginLog = struct {
+var UserAuthLog = struct {
 	ID         field.Number[int64]
 	UserID     field.Number[int64]
 	IdentityID field.Number[int64]

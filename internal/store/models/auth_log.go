@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserLoginLog records login attempts (append-only audit table).
-type UserLoginLog struct {
+// UserAuthLog records login attempts (append-only audit table).
+type UserAuthLog struct {
 	ID         int64  `gorm:"primaryKey;autoIncrement"`
 	UserID     *int64 `gorm:"index"`
 	IdentityID *int64

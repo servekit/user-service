@@ -48,18 +48,6 @@ func ListSessionsByUserID(ctx context.Context, tx *gorm.DB, userID int64) ([]*mo
 	return sessions, nil
 }
 
-// UpdateSessionLastActive updates the last active timestamp.
-func UpdateSessionLastActive(ctx context.Context, tx *gorm.DB, id string) error {
-	_, err := gorm.G[models.UserSession](tx).
-		Where(generated.UserSession.ID.Eq(id)).
-		Set(generated.UserSession.LastActiveAt.Now()).
-		Update(ctx)
-	if err != nil {
-		return xcodes.ErrInternal.Wrap(err)
-	}
-	return nil
-}
-
 // RevokeSession marks a session as revoked.
 func RevokeSession(ctx context.Context, tx *gorm.DB, id string) error {
 	rowsAffected, err := gorm.G[models.UserSession](tx).

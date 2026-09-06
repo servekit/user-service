@@ -18,12 +18,8 @@ type UserSession struct {
 	Country    string    `gorm:"size:4"`
 	City       string    `gorm:"size:64"`
 	ExpiresAt  time.Time `gorm:"not null;index:idx_user_sessions_expires"`
-	// LastActiveAt is initialized to the session creation time, then updated on
-	// each activity. autoCreateTime sets it on insert (portable — no DB default
-	// expression); explicit Updates change it thereafter.
-	LastActiveAt time.Time `gorm:"not null;autoCreateTime"`
-	RevokedAt    *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	RevokedAt  *time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
 }
