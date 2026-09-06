@@ -11,6 +11,7 @@ import (
 	gidservice "github.com/servekit/gid-service/pkg"
 	messageservice "github.com/servekit/message-service/pkg"
 	common "github.com/servekit/user-service/internal/service/common"
+	"github.com/servekit/user-service/pkg/clientinfo"
 
 	pb "github.com/servekit/api/gen/go/user/v1"
 	userstore "github.com/servekit/user-service/internal/service/session"
@@ -157,11 +158,16 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		}
 
 		now := time.Now()
-		sessData := &userstore.Data{UserID: user.ID, LoginMethod: req.Provider.String(), LoginAt: now}
+		ci := clientinfo.FromCtx(ctx)
+		sessData := &userstore.Data{
+			UserID: user.ID, LoginMethod: req.Provider.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
-			OS: sessData.OS, Browser: sessData.Browser,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         sessData.OS, Browser: sessData.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
@@ -171,10 +177,11 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(req.Provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ci.IP); err != nil {
 			return err
 		}
 
@@ -282,11 +289,16 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 	sessionID := uuid.New().String()
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
-		sessData := &userstore.Data{UserID: user.ID, LoginMethod: req.Method.String(), LoginAt: now}
+		ci := clientinfo.FromCtx(ctx)
+		sessData := &userstore.Data{
+			UserID: user.ID, LoginMethod: req.Method.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
 			IP: sessData.LoginIP, UserAgent: sessData.UserAgent,
-			OS: sessData.OS, Browser: sessData.Browser,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         sessData.OS, Browser: sessData.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
@@ -296,10 +308,11 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ci.IP); err != nil {
 			return err
 		}
 
@@ -387,9 +400,16 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		}
 
 		now := time.Now()
-		sessData := &userstore.Data{UserID: user.ID, LoginMethod: method.String(), LoginAt: now}
+		ci := clientinfo.FromCtx(ctx)
+		sessData := &userstore.Data{
+			UserID: user.ID, LoginMethod: method.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
+		}
 		dbSession := &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			IP: ci.IP, UserAgent: ci.UserAgent,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         ci.OS, Browser: ci.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}
 		if err := dal.CreateSession(ctx, tx, dbSession); err != nil {
@@ -399,10 +419,11 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ci.IP); err != nil {
 			return err
 		}
 

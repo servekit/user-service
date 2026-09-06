@@ -21,6 +21,7 @@ import (
 	"github.com/servekit/user-service/internal/store/dal"
 	"github.com/servekit/user-service/internal/store/models"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
+	"github.com/servekit/user-service/pkg/clientinfo"
 	"github.com/servekit/user-service/pkg/config"
 	"github.com/servekit/user-service/pkg/xcodes"
 
@@ -760,8 +761,12 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		}
 
 		now := time.Now()
+		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			IP: ci.IP, UserAgent: ci.UserAgent,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         ci.OS, Browser: ci.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}); err != nil {
 			return err
@@ -770,15 +775,17 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(pb.IdentityProvider_IDENTITY_PROVIDER_PHONE), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ci.IP); err != nil {
 			return err
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
 			UserID: user.ID, LoginMethod: mpProvider.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	}); err != nil {
 		return nil, err
@@ -898,8 +905,12 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		}
 
 		now := time.Now()
+		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: user.ID,
+			IP: ci.IP, UserAgent: ci.UserAgent,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         ci.OS, Browser: ci.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}); err != nil {
 			return err
@@ -908,15 +919,17 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(pb.LoginAction_LOGIN_ACTION_SOCIAL_REGISTER), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, user.ID, ci.IP); err != nil {
 			return err
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
 			UserID: user.ID, LoginMethod: providerID.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	}); err != nil {
 		return nil, err
@@ -934,8 +947,12 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 	sessionID := uuid.New().String()
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
+		ci := clientinfo.FromCtx(ctx)
 		if err := dal.CreateSession(ctx, tx, &models.UserSession{
 			ID: sessionID, UserID: userID,
+			IP: ci.IP, UserAgent: ci.UserAgent,
+			DeviceType: common.LoginDeviceType(ci),
+			OS:         ci.OS, Browser: ci.Browser,
 			ExpiresAt: now.Add(s.sessionMgr.TTL()), LastActiveAt: now,
 		}); err != nil {
 			return err
@@ -944,15 +961,17 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		uid := userID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(providerID), Action: int32(action), Success: true,
+			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
-		if err := dal.UpdateUserLastLogin(ctx, tx, userID, ""); err != nil {
+		if err := dal.UpdateUserLastLogin(ctx, tx, userID, ci.IP); err != nil {
 			return err
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
 			UserID: userID, LoginMethod: providerID.String(), LoginAt: now,
+			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	})
 	if err != nil {

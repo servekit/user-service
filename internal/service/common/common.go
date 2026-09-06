@@ -3,11 +3,31 @@
 package common
 
 import (
+	"strings"
+
 	pb "github.com/servekit/api/gen/go/user/v1"
 	"github.com/servekit/user-service/internal/store/models"
+	"github.com/servekit/user-service/pkg/clientinfo"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// LoginDeviceType maps the captured client environment onto the pb.DeviceType
+// value stored in session and login-log rows. A caller with no User-Agent at
+// all (direct gRPC / machine client, no edge middleware in front) is
+// classified as API rather than Web.
+func LoginDeviceType(ci clientinfo.ClientInfo) int32 {
+	switch {
+	case strings.Contains(ci.OS, "iOS"):
+		return int32(pb.DeviceType_DEVICE_TYPE_IOS)
+	case strings.Contains(ci.OS, "Android"):
+		return int32(pb.DeviceType_DEVICE_TYPE_ANDROID)
+	case ci.UserAgent == "":
+		return int32(pb.DeviceType_DEVICE_TYPE_API)
+	default:
+		return int32(pb.DeviceType_DEVICE_TYPE_WEB)
+	}
+}
 
 // ConvertUser maps a stored *models.User to its proto representation.
 func ConvertUser(u *models.User) *pb.User {
