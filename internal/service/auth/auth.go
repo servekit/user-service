@@ -254,6 +254,13 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		}
 	}
 
+	// Username login resolves to whichever identity actually holds the
+	// credentials — the audit log should name that provider (the account's
+	// registration source), not UNSPECIFIED.
+	if provider == pb.IdentityProvider_IDENTITY_PROVIDER_UNSPECIFIED && ident != nil {
+		provider = pb.IdentityProvider(ident.Provider)
+	}
+
 	// Verify credentials
 	if err := s.verifyCredentials(ctx, req, ident); err != nil {
 		// Increment failure counter for rate limiting. Fail CLOSED: when the
