@@ -14,6 +14,7 @@ import (
 	"github.com/servekit/user-service/internal/utils/credentials"
 	"github.com/servekit/user-service/internal/utils/pagination"
 	phoneutil "github.com/servekit/user-service/internal/utils/phone"
+	"github.com/servekit/user-service/pkg/clientinfo"
 	"github.com/servekit/user-service/pkg/xcodes"
 
 	"github.com/servekit/go-common/captcha"
@@ -543,6 +544,9 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 	}
 	pbLogs := make([]*pb.LoginLog, len(logs))
 	for i, l := range logs {
+		// The log row stores the raw UA but no os/browser columns — derive
+		// them on read so old rows parse under future rules too.
+		osName, browser, _ := clientinfo.ParseUA(l.UserAgent)
 		pbLogs[i] = &pb.LoginLog{
 			Id:         l.ID,
 			Provider:   pb.IdentityProvider(l.Provider),
@@ -550,6 +554,9 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 			Success:    l.Success,
 			FailReason: l.FailReason,
 			Ip:         l.IP,
+			DeviceType: pb.DeviceType(l.DeviceType),
+			Os:         osName,
+			Browser:    browser,
 			CreatedAt:  timestamppb.New(l.CreatedAt),
 		}
 		if l.UserID != nil {
