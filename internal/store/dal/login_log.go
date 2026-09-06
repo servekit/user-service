@@ -20,19 +20,35 @@ func CreateLoginLog(ctx context.Context, tx *gorm.DB, log *models.UserLoginLog) 
 	return nil
 }
 
+// LoginLogFilter narrows a ListLoginLogs query; zero values mean no filter
+// on that column (Success nil = both outcomes).
+type LoginLogFilter struct {
+	UserID   int64
+	Provider int32
+	Action   int32
+	Method   int32
+	Success  *bool
+}
+
 // ListLoginLogs returns a cursor-paginated list of login logs, newest first.
-// userID 0 and provider 0 mean "no filter on that column" (the audit view
-// defaults to all users); success is not filterable here because a proto3
-// bool cannot distinguish "failed" from "not filtering".
-func ListLoginLogs(ctx context.Context, tx *gorm.DB, userID int64, provider int32, cursor string, pageSize int32) ([]*models.UserLoginLog, string, error) {
+func ListLoginLogs(ctx context.Context, tx *gorm.DB, f LoginLogFilter, cursor string, pageSize int32) ([]*models.UserLoginLog, string, error) {
 	q := gorm.G[models.UserLoginLog](tx).
 		Order(generated.UserLoginLog.ID.Desc())
 
-	if userID != 0 {
-		q = q.Where(generated.UserLoginLog.UserID.Eq(userID))
+	if f.UserID != 0 {
+		q = q.Where(generated.UserLoginLog.UserID.Eq(f.UserID))
 	}
-	if provider != 0 {
-		q = q.Where(generated.UserLoginLog.Provider.Eq(provider))
+	if f.Provider != 0 {
+		q = q.Where(generated.UserLoginLog.Provider.Eq(f.Provider))
+	}
+	if f.Action != 0 {
+		q = q.Where(generated.UserLoginLog.Action.Eq(f.Action))
+	}
+	if f.Method != 0 {
+		q = q.Where(generated.UserLoginLog.Method.Eq(f.Method))
+	}
+	if f.Success != nil {
+		q = q.Where(generated.UserLoginLog.Success.Eq(*f.Success))
 	}
 
 	if cursor != "" {

@@ -4,7 +4,6 @@ package generated
 
 import (
 	"gorm.io/cli/gorm/field"
-	"gorm.io/gorm"
 )
 
 var GroupRoleMapping = struct {
@@ -13,12 +12,10 @@ var GroupRoleMapping = struct {
 	RoleID    field.Number[int64]
 	CreatedAt field.Time
 	UpdatedAt field.Time
-	DeletedAt field.Field[gorm.DeletedAt]
 }{
 	ID:        field.Number[int64]{}.WithColumn("id"),
 	GroupID:   field.Number[int64]{}.WithColumn("group_id"),
 	RoleID:    field.Number[int64]{}.WithColumn("role_id"),
 	CreatedAt: field.Time{}.WithColumn("created_at"),
 	UpdatedAt: field.Time{}.WithColumn("updated_at"),
-	DeletedAt: field.Field[gorm.DeletedAt]{}.WithColumn("deleted_at"),
 }

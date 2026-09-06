@@ -13,6 +13,7 @@ var UserLoginLog = struct {
 	IdentityID field.Number[int64]
 	Provider   field.Number[int32]
 	Action     field.Number[int32]
+	Method     field.Number[int32]
 	Success    field.Bool
 	FailReason field.String
 	IP         field.String
@@ -31,6 +32,7 @@ var UserLoginLog = struct {
 	IdentityID: field.Number[int64]{}.WithColumn("identity_id"),
 	Provider:   field.Number[int32]{}.WithColumn("provider"),
 	Action:     field.Number[int32]{}.WithColumn("action"),
+	Method:     field.Number[int32]{}.WithColumn("method"),
 	Success:    field.Bool{}.WithColumn("success"),
 	FailReason: field.String{}.WithColumn("fail_reason"),
 	IP:         field.String{}.WithColumn("ip"),

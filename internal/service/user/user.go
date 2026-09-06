@@ -538,10 +538,43 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 	if pageSize <= 0 {
 		pageSize = 20
 	}
-	logs, nextCursor, err := dal.ListLoginLogs(ctx, s.db, req.UserId, int32(req.Provider), req.Cursor, pageSize)
+	logs, nextCursor, err := dal.ListLoginLogs(ctx, s.db, dal.LoginLogFilter{
+		UserID:   req.UserId,
+		Provider: int32(req.Provider),
+		Action:   int32(req.Action),
+		Method:   int32(req.Method),
+		Success:  req.Success, // optional: nil = both outcomes
+	}, req.Cursor, pageSize)
 	if err != nil {
 		return nil, err
 	}
+
+	// Denormalize usernames for the list view — one batched query per page,
+	// distinct ids only (cursor pages are ≤100 rows).
+	userIDs := make([]int64, 0, len(logs))
+	seen := make(map[int64]struct{}, len(logs))
+	for _, l := range logs {
+		if l.UserID == nil {
+			continue
+		}
+		if _, ok := seen[*l.UserID]; !ok {
+			seen[*l.UserID] = struct{}{}
+			userIDs = append(userIDs, *l.UserID)
+		}
+	}
+	usernames := make(map[int64]string, len(userIDs))
+	if len(userIDs) > 0 {
+		users, err := dal.ListUsers(ctx, s.db, dal.UserFilter{UserIDs: userIDs})
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range users {
+			if u.Username != nil {
+				usernames[u.ID] = *u.Username
+			}
+		}
+	}
+
 	pbLogs := make([]*pb.LoginLog, len(logs))
 	for i, l := range logs {
 		// The log row stores the raw UA but no os/browser columns — derive
@@ -562,6 +595,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 		}
 		if l.UserID != nil {
 			pbLogs[i].UserId = *l.UserID
+			pbLogs[i].Username = usernames[*l.UserID]
 		}
 	}
 	return &pb.GetLoginLogsResponse{Logs: pbLogs, NextCursor: nextCursor}, nil

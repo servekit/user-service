@@ -15,7 +15,7 @@ var UserIdentity = struct {
 	ProviderUID field.String
 	Credentials field.String
 	Verified    field.Bool
-	OAuthData   field.Struct[models.OAuthData]
+	OAuthData   field.Field[models.OAuthData]
 	CreatedAt   field.Time
 	UpdatedAt   field.Time
 	DeletedAt   field.Field[gorm.DeletedAt]
@@ -26,7 +26,7 @@ var UserIdentity = struct {
 	ProviderUID: field.String{}.WithColumn("provider_uid"),
 	Credentials: field.String{}.WithColumn("credentials"),
 	Verified:    field.Bool{}.WithColumn("verified"),
-	OAuthData:   field.Struct[models.OAuthData]{}.WithName("OAuthData"),
+	OAuthData:   field.Field[models.OAuthData]{}.WithColumn("o_auth_data"),
 	CreatedAt:   field.Time{}.WithColumn("created_at"),
 	UpdatedAt:   field.Time{}.WithColumn("updated_at"),
 	DeletedAt:   field.Field[gorm.DeletedAt]{}.WithColumn("deleted_at"),

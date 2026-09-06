@@ -4,7 +4,6 @@ package generated
 
 import (
 	"gorm.io/cli/gorm/field"
-	"gorm.io/gorm"
 )
 
 var RolePermissionMapping = struct {
@@ -13,12 +12,10 @@ var RolePermissionMapping = struct {
 	PermissionID field.Number[int64]
 	CreatedAt    field.Time
 	UpdatedAt    field.Time
-	DeletedAt    field.Field[gorm.DeletedAt]
 }{
 	ID:           field.Number[int64]{}.WithColumn("id"),
 	RoleID:       field.Number[int64]{}.WithColumn("role_id"),
 	PermissionID: field.Number[int64]{}.WithColumn("permission_id"),
 	CreatedAt:    field.Time{}.WithColumn("created_at"),
 	UpdatedAt:    field.Time{}.WithColumn("updated_at"),
-	DeletedAt:    field.Field[gorm.DeletedAt]{}.WithColumn("deleted_at"),
 }

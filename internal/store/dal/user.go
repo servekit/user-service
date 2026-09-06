@@ -18,11 +18,12 @@ import (
 // ListUsers and the offset-based ListUsersPaged. Embedding this in both
 // filter types keeps the WHERE-clause logic in a single place.
 type UserFilterCore struct {
-	Status           int32 // pb.UserStatus; 0 = no filter
-	Gender           int32 // pb.Gender; 0 = no filter
-	RegisterSource   int32 // pb.IdentityProvider; 0 = no filter
-	RegisterDevice   int32 // pb.DeviceType; 0 = no filter
-	UserType         int32 // pb.UserType; 0 = no filter
+	Status           int32   // pb.UserStatus; 0 = no filter
+	Gender           int32   // pb.Gender; 0 = no filter
+	RegisterSource   int32   // pb.IdentityProvider; 0 = no filter
+	RegisterDevice   int32   // pb.DeviceType; 0 = no filter
+	UserType         int32   // pb.UserType; 0 = no filter
+	UserIDs          []int64 // exact batch lookup; empty = no filter
 	Locale           string
 	Timezone         string
 	RegisterIP       string
