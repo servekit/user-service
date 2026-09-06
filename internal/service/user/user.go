@@ -538,8 +538,22 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 	if pageSize <= 0 {
 		pageSize = 20
 	}
+	// Username filter resolves server-side; an unknown username is a valid
+	// empty outcome, not an error. An explicit user_id wins when both exist.
+	userID := req.UserId
+	if userID == 0 && req.GetUsername() != "" {
+		u, uerr := dal.GetUserByUsername(ctx, s.db, req.GetUsername())
+		if uerr != nil {
+			if errors.Is(uerr, xcodes.ErrUserNotFound.New()) {
+				return &pb.GetLoginLogsResponse{}, nil
+			}
+			return nil, uerr
+		}
+		userID = u.ID
+	}
+
 	logs, nextCursor, err := dal.ListAuthLogs(ctx, s.db, dal.AuthLogFilter{
-		UserID:   req.UserId,
+		UserID:   userID,
 		Provider: int32(req.Provider),
 		Action:   int32(req.Action),
 		Method:   int32(req.Method),
