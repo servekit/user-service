@@ -36,6 +36,17 @@ const (
 	clientDeviceHeader = "Grpc-Metadata-X-Client-Device"
 )
 
+// Column ceilings shared by every table that stores the caller environment
+// (user_sessions, user_auth_logs, user_register_profiles): Postgres
+// varchar(n) counts characters and rejects longer values, which would fail
+// the whole register/login transaction. Oversized (hostile or buggy) input
+// is truncated instead of rejected; sqlite (tests) never enforces, so this
+// clamp is the only guard.
+const (
+	maxUserAgentRunes = 512
+	maxDeviceRunes    = 128
+)
+
 // ClientInfo is the normalized caller environment. UserAgent stays raw;
 // OS/Browser/Device are best-effort parses (empty when unknown) so callers
 // can always store the original string and re-parse later.
@@ -55,12 +66,12 @@ func FromCtx(ctx context.Context) ClientInfo {
 	if !ok {
 		return ClientInfo{}
 	}
-	ua := firstValue(md, XClientUA)
+	ua := clamp(firstValue(md, XClientUA), maxUserAgentRunes)
 	osName, browser, device := ParseUA(ua)
 	// The client-hint model (when the browser opted in) beats UA parsing —
 	// UA reduction froze the Android token to "K", and iPhones never
 	// carried a model at all.
-	if model := firstValue(md, XClientDevice); model != "" {
+	if model := clamp(firstValue(md, XClientDevice), maxDeviceRunes); model != "" {
 		device = model
 	}
 	return ClientInfo{
@@ -70,6 +81,20 @@ func FromCtx(ctx context.Context) ClientInfo {
 		Browser:   browser,
 		Device:    device,
 	}
+}
+
+// clamp limits s to at most max runes — the unit varchar(n) enforces —
+// cutting on a rune boundary so the result stays valid UTF-8. The byte-length
+// fast path skips the rune conversion for the common short input.
+func clamp(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max])
 }
 
 // firstValue returns the first metadata value for key, or "" when absent.

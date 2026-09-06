@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -63,6 +65,42 @@ func TestFromCtx_ReadsEdgeMetadata(t *testing.T) {
 
 func TestFromCtx_NoMetadataReturnsZero(t *testing.T) {
 	require.Equal(t, clientinfo.ClientInfo{}, clientinfo.FromCtx(context.Background()))
+}
+
+func TestFromCtx_TruncatesOversizedUAAndDevice(t *testing.T) {
+	// Postgres varchar ceilings: UA 512, device hint 128 — every
+	// environment-storing table shares them, so FromCtx must never hand
+	// out a longer value.
+	longUA := strings.Repeat("Mozilla/5.0 (X11; Linux) ", 40)  // 960 runes
+	longDevice := strings.Repeat("Pixel 8 Pro ", 20)           // 240 runes
+
+	ci := clientinfo.FromCtx(metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		"X-Client-Ua", longUA,
+		"X-Client-Device", longDevice,
+	)))
+	require.Len(t, []rune(ci.UserAgent), 512)
+	require.Equal(t, longUA[:512], ci.UserAgent) // prefix preserved
+	require.Len(t, []rune(ci.Device), 128)
+	require.Equal(t, longDevice[:128], ci.Device)
+}
+
+func TestFromCtx_TruncationKeepsValidUTF8(t *testing.T) {
+	multibyte := strings.Repeat("浏览器/1.0 ", 200) // 2200 runes, 3-byte runes
+	require.Greater(t, len(multibyte), 512)        // byte length far exceeds
+
+	ci := clientinfo.FromCtx(metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		"X-Client-Ua", multibyte,
+	)))
+	require.Len(t, []rune(ci.UserAgent), 512)
+	require.True(t, utf8.ValidString(ci.UserAgent), "clamp must cut on a rune boundary")
+}
+
+func TestFromCtx_ShortValuesPassThroughUnchanged(t *testing.T) {
+	ua := "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) Version/17.0 Mobile Safari/604.1"
+	ci := clientinfo.FromCtx(metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		"X-Client-Ua", ua,
+	)))
+	require.Equal(t, ua, ci.UserAgent)
 }
 
 func TestParseUA(t *testing.T) {
