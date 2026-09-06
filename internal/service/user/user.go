@@ -564,7 +564,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 	}
 	usernames := make(map[int64]string, len(userIDs))
 	if len(userIDs) > 0 {
-		users, err := dal.ListUsers(ctx, s.db, dal.UserFilter{UserIDs: userIDs})
+		users, err := dal.ListUsers(ctx, s.db, dal.UserFilter{UserFilterCore: dal.UserFilterCore{UserIDs: userIDs}})
 		if err != nil {
 			return nil, err
 		}
