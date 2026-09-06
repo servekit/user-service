@@ -213,7 +213,7 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		if r.RevokedAt != nil {
 			status = pb.SessionStatus_SESSION_STATUS_REVOKED
 		}
-		pbSessions = append(pbSessions, &pb.Session{
+		pbSess := &pb.Session{
 			Id:         r.ID,
 			Ip:         r.IP,
 			DeviceType: pb.DeviceType(r.DeviceType),
@@ -221,7 +221,14 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 			Browser:    r.Browser,
 			CreatedAt:  timestamppb.New(r.CreatedAt),
 			Status:     status,
-		})
+		}
+		// A revoked session's last lifecycle event IS the logout — surface
+		// revoked_at as its final activity time. Lapsed/evicted rows have no
+		// knowable moment and stay unset.
+		if r.RevokedAt != nil {
+			pbSess.LastActiveAt = timestamppb.New(*r.RevokedAt)
+		}
+		pbSessions = append(pbSessions, pbSess)
 	}
 
 	return &pb.ListSessionsResponse{Sessions: pbSessions, NextCursor: nextCursor}, nil

@@ -83,8 +83,13 @@ func TestListSessions_MergedView(t *testing.T) {
 	if second.GetId() != "pg-revoked" || second.GetStatus() != pb.SessionStatus_SESSION_STATUS_REVOKED {
 		t.Errorf("second row = %s/%v, want pg-revoked/REVOKED (newest history first)", second.GetId(), second.GetStatus())
 	}
-	if second.GetLastActiveAt() != nil {
-		t.Errorf("history last-active should be unset, got %v", second.GetLastActiveAt())
+	// Revoked rows carry revoked_at as their final activity time…
+	if got := second.GetLastActiveAt(); got == nil || got.AsTime().Sub(revoked) > time.Minute {
+		t.Errorf("revoked last-active = %v, want ≈ revoked_at %v", got, revoked)
+	}
+	// …lapsed rows stay unset (no knowable moment).
+	if third.GetLastActiveAt() != nil {
+		t.Errorf("lapsed last-active should be unset, got %v", third.GetLastActiveAt())
 	}
 
 	third := resp.GetSessions()[2]
