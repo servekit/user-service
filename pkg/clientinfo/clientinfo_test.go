@@ -76,13 +76,13 @@ func TestParseUA(t *testing.T) {
 		{
 			name:        "chrome on windows",
 			ua:          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			wantOS:      "Windows 10/11",
+			wantOS:      "Windows", // NT 10.0 cannot distinguish 10 from 11
 			wantBrowser: "Chrome 120.0.0.0",
 		},
 		{
 			name:        "safari on macos",
 			ua:          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-			wantOS:      "macOS 10.15.7",
+			wantOS:      "macOS", // desktop macOS tokens frozen at 10_15_7 — version is noise
 			wantBrowser: "Safari 17.1",
 		},
 		{
@@ -102,7 +102,7 @@ func TestParseUA(t *testing.T) {
 		{
 			name:        "edge on windows",
 			ua:          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.2210.91",
-			wantOS:      "Windows 10/11",
+			wantOS:      "Windows", // NT 10.0 cannot distinguish 10 from 11
 			wantBrowser: "Edge 120.0.2210.91",
 		},
 		{
@@ -169,4 +169,15 @@ func TestIsApiClient(t *testing.T) {
 	require.True(t, clientinfo.IsApiClient("Go-http-client/2.0"))
 	require.False(t, clientinfo.IsApiClient("Mozilla/5.0 (Macintosh) Chrome/120.0.0.0"))
 	require.False(t, clientinfo.IsApiClient(""))
+}
+
+func TestFromCtx_ModelHintOverridesUA(t *testing.T) {
+	// UA reduction froze the Android model to "K"; the Sec-CH-UA-Model hint
+	// (forwarded by the edge middleware) is the authoritative device name.
+	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		"X-Client-Ua", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+		"X-Client-Device", "Pixel 8 Pro",
+	))
+	ci := clientinfo.FromCtx(ctx)
+	require.Equal(t, "Pixel 8 Pro", ci.Device)
 }

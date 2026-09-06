@@ -784,7 +784,7 @@ func (s *Service) MiniProgramPhoneLogin(ctx context.Context, req *pb.MiniProgram
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: user.ID, LoginMethod: mpProvider.String(), LoginAt: now,
+			UserID: user.ID, LoginMethod: mpProvider.String(), LoginAt: now, LoginTarget: result.ProviderUID,
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	}); err != nil {
@@ -928,7 +928,7 @@ func (s *Service) registerAndLogin(ctx context.Context, providerID pb.IdentityPr
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: user.ID, LoginMethod: providerID.String(), LoginAt: now,
+			UserID: user.ID, LoginMethod: providerID.String(), LoginAt: now, LoginTarget: result.ProviderUID,
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	}); err != nil {
@@ -970,7 +970,7 @@ func (s *Service) createSession(ctx context.Context, userID int64, providerID pb
 		}
 
 		return s.sessionMgr.Create(ctx, sessionID, &userstore.Data{
-			UserID: userID, LoginMethod: providerID.String(), LoginAt: now,
+			UserID: userID, LoginMethod: providerID.String(), LoginAt: now, LoginTarget: targetUID,
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		})
 	})

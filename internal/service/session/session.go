@@ -52,6 +52,8 @@ func (s *Service) GetSession(ctx context.Context, req *pb.GetSessionRequest) (*p
 		Os:          data.OS,
 		Browser:     data.Browser,
 		LoginMethod: data.LoginMethod,
+		LoginTarget: data.LoginTarget,
+		Device:      data.Device,
 	}
 	if ttl > 0 {
 		resp.ExpiresAt = timestamppb.New(time.Now().Add(ttl))
@@ -172,6 +174,9 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 				CreatedAt:    timestamppb.New(data.LoginAt),
 				LastActiveAt: timestamppb.New(lastActive),
 				Status:       pb.SessionStatus_SESSION_STATUS_ACTIVE,
+				LoginMethod:  data.LoginMethod,
+				LoginTarget:  data.LoginTarget,
+				Device:       data.Device,
 			})
 		}
 	}

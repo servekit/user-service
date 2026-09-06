@@ -27,11 +27,13 @@ import (
 // FromCtx. Lowercase because gRPC metadata keys must be; the HTTP wire form
 // carries the Grpc-Metadata- prefix that grpc-gateway strips on forwarding.
 const (
-	XClientIP = "x-client-ip"
-	XClientUA = "x-client-ua"
+	XClientIP     = "x-client-ip"
+	XClientUA     = "x-client-ua"
+	XClientDevice = "x-client-device"
 
-	clientIPHeader = "Grpc-Metadata-X-Client-Ip"
-	clientUAHeader = "Grpc-Metadata-X-Client-Ua"
+	clientIPHeader     = "Grpc-Metadata-X-Client-Ip"
+	clientUAHeader     = "Grpc-Metadata-X-Client-Ua"
+	clientDeviceHeader = "Grpc-Metadata-X-Client-Device"
 )
 
 // ClientInfo is the normalized caller environment. UserAgent stays raw;
@@ -55,6 +57,12 @@ func FromCtx(ctx context.Context) ClientInfo {
 	}
 	ua := firstValue(md, XClientUA)
 	osName, browser, device := ParseUA(ua)
+	// The client-hint model (when the browser opted in) beats UA parsing —
+	// UA reduction froze the Android token to "K", and iPhones never
+	// carried a model at all.
+	if model := firstValue(md, XClientDevice); model != "" {
+		device = model
+	}
 	return ClientInfo{
 		IP:        firstValue(md, XClientIP),
 		UserAgent: ua,

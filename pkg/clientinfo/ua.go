@@ -26,19 +26,11 @@ func parseOS(ua string) string {
 		return "iOS"
 	case strings.Contains(ua, "Android"):
 		return "Android " + versionAfter(ua, "Android ")
-	case strings.Contains(ua, "Windows NT 10."):
-		// Browsers cannot distinguish Windows 10 from 11 in the UA.
-		return "Windows 10/11"
-	case strings.Contains(ua, "Windows NT 6.3"):
-		return "Windows 8.1"
-	case strings.Contains(ua, "Windows NT 6.2"):
-		return "Windows 8"
-	case strings.Contains(ua, "Windows NT 6.1"):
-		return "Windows 7"
+	// Windows version tokens cannot distinguish 10 from 11, and desktop
+	// browsers freeze the macOS token at 10_15_7 — both versions are noise,
+	// so bare names (the GitHub/Google account-security convention).
 	case strings.Contains(ua, "Windows"):
 		return "Windows"
-	case strings.Contains(ua, "Mac OS X "):
-		return "macOS " + strings.ReplaceAll(versionAfter(ua, "Mac OS X "), "_", ".")
 	case strings.Contains(ua, "Macintosh"), strings.Contains(ua, "Mac OS"):
 		return "macOS"
 	case strings.Contains(ua, "Linux"):

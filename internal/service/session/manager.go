@@ -16,7 +16,10 @@ import (
 
 // Data stored in Redis for each active session.
 type Data struct {
-	UserID      int64     `json:"user_id"`
+	UserID int64 `json:"user_id"`
+	// LoginTarget is the credential subject (username/email/phone/oauth
+	// uid) — sensitive ops gate on login strength via LoginMethod+Target.
+	LoginTarget string    `json:"login_target"`
 	LoginIP     string    `json:"login_ip"`
 	LoginAt     time.Time `json:"login_at"`
 	LoginMethod string    `json:"login_method"` // email, phone, github, google, wechat, apple

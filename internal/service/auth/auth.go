@@ -160,8 +160,12 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 
 		now := time.Now()
 		ci := clientinfo.FromCtx(ctx)
+		registerTargetVal := req.Email
+		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
+			registerTargetVal = req.Phone
+		}
 		sessData := &userstore.Data{
-			UserID: user.ID, LoginMethod: req.Provider.String(), LoginAt: now,
+			UserID: user.ID, LoginMethod: req.Provider.String(), LoginAt: now, LoginTarget: registerTargetVal,
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		}
 		dbSession := &models.UserSession{
@@ -337,7 +341,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		now := time.Now()
 		ci := clientinfo.FromCtx(ctx)
 		sessData := &userstore.Data{
-			UserID: user.ID, LoginMethod: req.Method.String(), LoginAt: now,
+			UserID: user.ID, LoginMethod: req.Method.String(), LoginAt: now, LoginTarget: target,
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		}
 		dbSession := &models.UserSession{
@@ -456,7 +460,7 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		now := time.Now()
 		ci := clientinfo.FromCtx(ctx)
 		sessData := &userstore.Data{
-			UserID: user.ID, LoginMethod: method.String(), LoginAt: now,
+			UserID: user.ID, LoginMethod: method.String(), LoginAt: now, LoginTarget: displayTarget(method, targetKey),
 			LoginIP: ci.IP, UserAgent: ci.UserAgent, OS: ci.OS, Browser: ci.Browser, Device: ci.Device,
 		}
 		dbSession := &models.UserSession{

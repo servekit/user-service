@@ -21,10 +21,19 @@ func Wrap(next http.Handler) http.Handler {
 		r.Header.Del(XClientUA)
 		r.Header.Del(clientIPHeader)
 		r.Header.Del(clientUAHeader)
+		r.Header.Del(clientDeviceHeader)
+		r.Header.Del(XClientDevice)
 
 		r.Header.Set(clientIPHeader, clientIP(r))
 		if ua := r.UserAgent(); ua != "" {
 			r.Header.Set(clientUAHeader, ua)
+		}
+		// Chrome's UA reduction froze the Android model token to "K"; the
+		// real model only arrives via the opt-in Sec-CH-UA-Model hint. Ask
+		// for it once and every subsequent browser request carries it.
+		w.Header().Add("Accept-CH", "Sec-CH-UA-Model")
+		if model := r.Header.Get("Sec-CH-UA-Model"); model != "" {
+			r.Header.Set(clientDeviceHeader, model)
 		}
 		next.ServeHTTP(w, r)
 	})
