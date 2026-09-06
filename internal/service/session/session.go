@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,14 +108,28 @@ func (s *Service) ExchangeSessionCode(ctx context.Context, req *pb.ExchangeSessi
 // expiry score (score - TTL = last validate-on-use), clamped to at least
 // LoginAt so freshly created sessions read sanely.
 //
-// Merged view: ACTIVE rows from Redis come first (as above); behind them up
-// to historyLimit REVOKED/EXPIRED rows from the PG tombstone table, newest
-// first. Historical last-active is unknowable (the column is gone) and stays
-// unset; revoked_at distinguishes explicit logout from lapsed/evicted.
-const historyLimit = 20
+// Merged view, cursor-paged over history: the FIRST call (empty cursor)
+// returns ACTIVE rows from Redis ahead of the first history page; subsequent
+// calls return history only, strictly below the cursor (created_at desc).
+// Historical last-active is unknowable (the column is gone) and stays unset;
+// revoked_at distinguishes explicit logout from lapsed/evicted.
+const defaultHistoryPageSize = 20
 
 func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest) (*pb.ListSessionsResponse, error) {
 	userID := req.GetUserId()
+	pageSize := req.GetPageSize()
+	if pageSize <= 0 {
+		pageSize = defaultHistoryPageSize
+	}
+	var beforeCreated time.Time
+	if c := req.GetCursor(); c != "" {
+		nano, err := strconv.ParseInt(c, 10, 64)
+		if err != nil {
+			return nil, xcodes.ErrBadRequest.Wrapf(err, "invalid cursor: %s", c)
+		}
+		beforeCreated = time.Unix(0, nano)
+	}
+	firstPage := beforeCreated.IsZero()
 
 	sessionIDs, expiryScores, err := s.sessionMgr.ListByUserID(ctx, userID)
 	if err != nil {
@@ -125,8 +140,8 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 		live[sid] = struct{}{}
 	}
 
-	pbSessions := make([]*pb.Session, 0, len(sessionIDs)+historyLimit)
-	if len(sessionIDs) > 0 {
+	pbSessions := make([]*pb.Session, 0, len(sessionIDs)+int(pageSize))
+	if firstPage && len(sessionIDs) > 0 {
 		sessions, err := s.sessionMgr.GetMulti(ctx, sessionIDs)
 		if err != nil {
 			return nil, err
@@ -158,18 +173,25 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 	}
 
 	// History from the PG tombstones, newest first, skipping rows still live.
-	rows, err := dal.ListSessionsByUserID(ctx, s.db, userID, len(live)+historyLimit)
+	// Fetch one extra row to detect whether another page exists.
+	fetch := int(pageSize) + len(live) + 1
+	rows, err := dal.ListSessionsByUserID(ctx, s.db, userID, fetch, beforeCreated)
 	if err != nil {
 		return nil, err
 	}
-	appended := 0
+	history := rows[:0:min(len(rows), fetch)]
 	for _, r := range rows {
 		if _, ok := live[r.ID]; ok {
 			continue
 		}
-		if appended >= historyLimit {
-			break
-		}
+		history = append(history, r)
+	}
+	var nextCursor string
+	if len(history) > int(pageSize) {
+		history = history[:pageSize]
+		nextCursor = strconv.FormatInt(history[len(history)-1].CreatedAt.UnixNano(), 10)
+	}
+	for _, r := range history {
 		status := pb.SessionStatus_SESSION_STATUS_EXPIRED
 		if r.RevokedAt != nil {
 			status = pb.SessionStatus_SESSION_STATUS_REVOKED
@@ -183,10 +205,9 @@ func (s *Service) ListSessions(ctx context.Context, req *pb.ListSessionsRequest)
 			CreatedAt:  timestamppb.New(r.CreatedAt),
 			Status:     status,
 		})
-		appended++
 	}
 
-	return &pb.ListSessionsResponse{Sessions: pbSessions}, nil
+	return &pb.ListSessionsResponse{Sessions: pbSessions, NextCursor: nextCursor}, nil
 }
 
 // deviceTypeFor classifies a stored session for the list view. Read-side

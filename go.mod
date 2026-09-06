@@ -108,7 +108,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
-	github.com/servekit/api/gen/go v0.0.0-20260906035144-382dc5024bad
+	github.com/servekit/api/gen/go v0.0.0-20260906040127-b6b3e5e7c64a
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sony/sonyflake/v2 v2.1.0 // indirect

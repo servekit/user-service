@@ -60,12 +60,15 @@ func TestListSessions_MergedView(t *testing.T) {
 		}
 	}
 
-	resp, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 7})
+	resp, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 7, PageSize: 20})
 	if err != nil {
 		t.Fatalf("ListSessions: %v", err)
 	}
 	if len(resp.GetSessions()) != 3 {
 		t.Fatalf("sessions = %d, want 3 (1 active + 2 history)", len(resp.GetSessions()))
+	}
+	if resp.GetNextCursor() != "" {
+		t.Errorf("next_cursor = %q, want empty (history exhausted)", resp.GetNextCursor())
 	}
 
 	first := resp.GetSessions()[0]
@@ -110,5 +113,59 @@ func TestListSessions_HistoryOnly(t *testing.T) {
 	}
 	if len(resp.GetSessions()) != 1 || resp.GetSessions()[0].GetStatus() != pb.SessionStatus_SESSION_STATUS_REVOKED {
 		t.Fatalf("want 1 REVOKED row, got %+v", resp.GetSessions())
+	}
+}
+
+// TestListSessions_HistoryPaging pins cursor paging over history: page one
+// carries the live row + first history batch and a cursor; page two returns
+// strictly older history only (no live rows repeated).
+func TestListSessions_HistoryPaging(t *testing.T) {
+	m, _ := newTestManager(t)
+	db := newTestDB(t)
+	svc := session.New(db, m)
+	ctx := context.Background()
+
+	if err := m.Create(ctx, "sess-live", &session.Data{UserID: 11, LoginAt: time.Now()}); err != nil {
+		t.Fatalf("Create live: %v", err)
+	}
+	base := time.Now().Add(-time.Hour)
+	seed := []models.UserSession{
+		{ID: "h-new", UserID: 11, CreatedAt: base},
+		{ID: "h-mid", UserID: 11, CreatedAt: base.Add(-time.Minute)},
+		{ID: "h-old", UserID: 11, CreatedAt: base.Add(-2 * time.Minute)},
+		{ID: "sess-live", UserID: 11, CreatedAt: base.Add(-3 * time.Minute)}, // live, must be skipped
+	}
+	for i := range seed {
+		if err := db.Create(&seed[i]).Error; err != nil {
+			t.Fatalf("seed %s: %v", seed[i].ID, err)
+		}
+	}
+
+	page1, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 11, PageSize: 2})
+	if err != nil {
+		t.Fatalf("page1: %v", err)
+	}
+	if got := len(page1.GetSessions()); got != 3 { // live + 2 history
+		t.Fatalf("page1 = %d rows, want 3", got)
+	}
+	if page1.GetSessions()[0].GetId() != "sess-live" {
+		t.Errorf("page1 first = %s, want live row", page1.GetSessions()[0].GetId())
+	}
+	if page1.GetNextCursor() == "" {
+		t.Fatal("page1 next_cursor empty, want a page 2")
+	}
+
+	page2, err := svc.ListSessions(ctx, &pb.ListSessionsRequest{UserId: 11, PageSize: 2, Cursor: page1.GetNextCursor()})
+	if err != nil {
+		t.Fatalf("page2: %v", err)
+	}
+	if got := len(page2.GetSessions()); got != 1 { // h-old only, no live repeat
+		t.Fatalf("page2 = %d rows, want 1", got)
+	}
+	if page2.GetSessions()[0].GetId() != "h-old" {
+		t.Errorf("page2 row = %s, want h-old", page2.GetSessions()[0].GetId())
+	}
+	if page2.GetNextCursor() != "" {
+		t.Errorf("page2 next_cursor = %q, want empty", page2.GetNextCursor())
 	}
 }
