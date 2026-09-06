@@ -554,6 +554,7 @@ func (s *Service) GetLoginLogs(ctx context.Context, req *pb.GetLoginLogsRequest)
 			Success:    l.Success,
 			FailReason: l.FailReason,
 			Ip:         l.IP,
+			Method:     pb.LoginMethod(l.Method),
 			DeviceType: pb.DeviceType(l.DeviceType),
 			Os:         osName,
 			Browser:    browser,

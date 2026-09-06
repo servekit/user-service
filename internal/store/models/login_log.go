@@ -13,6 +13,7 @@ type UserLoginLog struct {
 	IdentityID *int64
 	Provider   int32  `gorm:"not null"` // pb.IdentityProvider (1=email, 2=phone, 3=github, ...)
 	Action     int32  `gorm:"not null"` // pb.LoginAction (1=login, 2=register, 3=social_login, 4=social_register, 5=bind, 6=unbind)
+	Method     int32  // pb.LoginMethod (1=email+password, 2=phone+password, 3=phone code, 4=email code, 5=username+password); 0 = social / legacy rows
 	Success    bool   `gorm:"not null"`
 	FailReason string `gorm:"size:128"`
 	IP         string `gorm:"size:45"`

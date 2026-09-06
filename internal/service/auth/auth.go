@@ -176,9 +176,16 @@ func (s *Service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		}
 
 		uid := user.ID
+		// Register proves ownership via a one-time code; record the matching
+		// login method so the audit view reads 注册 accurately.
+		registerMethod := pb.LoginMethod_LOGIN_METHOD_EMAIL_CODE
+		if req.Provider == pb.IdentityProvider_IDENTITY_PROVIDER_PHONE {
+			registerMethod = pb.LoginMethod_LOGIN_METHOD_PHONE_CODE
+		}
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(req.Provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(registerMethod),
+			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
@@ -259,7 +266,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 					ci := clientinfo.FromCtx(ctx)
 					if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
 						Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER),
-						Success: false, FailReason: "wrong_code",
+						Success: false, FailReason: "wrong_code", Method: int32(req.Method),
 						IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 					}); logErr != nil {
 						// Audit log failure should not mask auth error
@@ -299,7 +306,7 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		failCI := clientinfo.FromCtx(ctx)
 		if logErr := dal.CreateLoginLog(ctx, s.db, &models.UserLoginLog{
 			UserID: &userID, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN),
-			Success: false, FailReason: failReason,
+			Success: false, FailReason: failReason, Method: int32(req.Method),
 			IP: failCI.IP, UserAgent: failCI.UserAgent, DeviceType: common.LoginDeviceType(failCI),
 		}); logErr != nil {
 			// Audit log failure should not mask auth error
@@ -342,7 +349,8 @@ func (s *Service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_LOGIN), Success: true,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(req.Method),
+			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
@@ -460,7 +468,8 @@ func (s *Service) autoRegister(ctx context.Context, method pb.LoginMethod, targe
 		uid := user.ID
 		if err := dal.CreateLoginLog(ctx, tx, &models.UserLoginLog{
 			UserID: &uid, Provider: int32(provider), Action: int32(pb.LoginAction_LOGIN_ACTION_REGISTER), Success: true,
-			IP: ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
+			Method: int32(method),
+			IP:     ci.IP, UserAgent: ci.UserAgent, DeviceType: common.LoginDeviceType(ci),
 		}); err != nil {
 			return err
 		}
