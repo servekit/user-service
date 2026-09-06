@@ -21,7 +21,6 @@ type UserFilterCore struct {
 	Status           int32 // pb.UserStatus; 0 = no filter
 	Gender           int32 // pb.Gender; 0 = no filter
 	RegisterSource   int32 // pb.IdentityProvider; 0 = no filter
-	RegisterDevice   int32 // pb.DeviceType; 0 = no filter
 	UserType         int32 // pb.UserType; 0 = no filter
 	Locale           string
 	Timezone         string
@@ -248,9 +247,6 @@ func applyUserFilters(q gorm.ChainInterface[models.UserUser], f UserFilterCore) 
 	if f.RegisterSource != 0 {
 		q = q.Where(generated.UserUser.RegisterSource.Eq(f.RegisterSource))
 	}
-	if f.RegisterDevice != 0 {
-		q = q.Where(generated.UserUser.RegisterDevice.Eq(f.RegisterDevice))
-	}
 	if f.UserType != 0 {
 		q = q.Where(generated.UserUser.UserType.Eq(f.UserType))
 	}
@@ -261,7 +257,11 @@ func applyUserFilters(q gorm.ChainInterface[models.UserUser], f UserFilterCore) 
 		q = q.Where(generated.UserUser.Timezone.Eq(f.Timezone))
 	}
 	if f.RegisterIP != "" {
-		q = q.Where(generated.UserUser.RegisterIP.Eq(f.RegisterIP))
+		// Register IP lives in the 1:1 user_register_profiles table (spec
+		// 2026-09-06): filter via subquery on its ip index instead of the
+		// dropped user column. Raw SQL because the typed API cannot express
+		// a cross-table IN.
+		q = q.Where("id IN (SELECT user_id FROM user_register_profiles WHERE ip = ?)", f.RegisterIP)
 	}
 	if f.LastLoginIP != "" {
 		q = q.Where(generated.UserUser.LastLoginIP.Eq(f.LastLoginIP))

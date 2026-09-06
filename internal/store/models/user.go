@@ -23,8 +23,6 @@ type UserUser struct {
 	Bio            string `gorm:"size:512"`
 	Status         int32  `gorm:"not null;default:1"` // pb.UserStatus (1=active, 2=disabled, 3=pending_review)
 	RegisterSource int32  // pb.IdentityProvider (1=email, 2=phone, 3=github, 4=google, 5=wechat, 6=apple, 7=wechat_miniprogram)
-	RegisterIP     string `gorm:"size:45"`
-	RegisterDevice int32  // pb.DeviceType (1=web, 2=ios, 3=android, 4=api)
 	UserType       int32  `gorm:"not null;default:1;index"` // pb.UserType (1=normal, 2=internal)
 	LastLoginAt    *time.Time
 	LastLoginIP    string `gorm:"size:45"`

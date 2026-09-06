@@ -23,8 +23,6 @@ var UserUser = struct {
 	Bio            field.String
 	Status         field.Number[int32]
 	RegisterSource field.Number[int32]
-	RegisterIP     field.String
-	RegisterDevice field.Number[int32]
 	UserType       field.Number[int32]
 	LastLoginAt    field.Time
 	LastLoginIP    field.String
@@ -47,8 +45,6 @@ var UserUser = struct {
 	Bio:            field.String{}.WithColumn("bio"),
 	Status:         field.Number[int32]{}.WithColumn("status"),
 	RegisterSource: field.Number[int32]{}.WithColumn("register_source"),
-	RegisterIP:     field.String{}.WithColumn("register_ip"),
-	RegisterDevice: field.Number[int32]{}.WithColumn("register_device"),
 	UserType:       field.Number[int32]{}.WithColumn("user_type"),
 	LastLoginAt:    field.Time{}.WithColumn("last_login_at"),
 	LastLoginIP:    field.String{}.WithColumn("last_login_ip"),

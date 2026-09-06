@@ -148,6 +148,31 @@ func TestBackfillRegisterProfiles(t *testing.T) {
 	}
 }
 
+func TestListUsers_RegisterIPFilterHitsProfileTable(t *testing.T) {
+	db := newBackfillTestDB(t)
+	ctx := context.Background()
+
+	mk := func(id int64, ip string) {
+		t.Helper()
+		if err := db.Create(&models.UserUser{ID: id, Nickname: "u"}).Error; err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+		if err := dal.CreateRegisterProfile(ctx, db, &models.UserRegisterProfile{UserID: id, IP: ip}); err != nil {
+			t.Fatalf("seed profile: %v", err)
+		}
+	}
+	mk(1, "198.51.100.1")
+	mk(2, "198.51.100.2")
+
+	users, err := dal.ListUsers(ctx, db, dal.UserFilter{UserFilterCore: dal.UserFilterCore{RegisterIP: "198.51.100.1"}})
+	if err != nil {
+		t.Fatalf("ListUsers: %v", err)
+	}
+	if len(users) != 1 || users[0].ID != 1 {
+		t.Fatalf("register_ip filter returned %v, want only user 1", users)
+	}
+}
+
 func newBackfillTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})

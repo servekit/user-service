@@ -13,6 +13,7 @@
 
 - [依赖](#依赖)
 - [构建与运行](#构建与运行)
+- [Operations](#operations)
 - [典型流程](#典型流程)
   - [注册(邮箱 / 手机)](#注册邮箱--手机)
   - [登录](#登录)
@@ -66,6 +67,22 @@ make migrate    # go run 执行迁移
 ```
 
 > 二进制名由 Makefile 的 `BIN_NAME` 变量管理(默认 `user-service`),改名只需覆盖该变量;Go 包路径固定为 `cmd/server`。user-service 暂无 Dockerfile,镜像构建待补。
+
+---
+
+## Operations
+
+### Dropping the dead register columns (one-time, post-deploy)
+
+`register_ip` / `register_device` moved to `user_register_profiles`
+(2026-09-06). AutoMigrate never drops columns, so after the new binary is
+fully rolled out — and you are confident it will not be rolled back (old
+binaries SELECT these columns and error once dropped) — run:
+
+    ALTER TABLE user_users DROP COLUMN register_ip;
+    ALTER TABLE user_users DROP COLUMN register_device;
+
+Then run `./user-service backfill-register-env` once if not already done.
 
 ---
 
